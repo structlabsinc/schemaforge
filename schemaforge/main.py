@@ -189,7 +189,18 @@ def _handle_output(args, migration_plan):
             for old_col, new_col in diff.modified_columns:
                 output_content += f"{YELLOW}    ~ Modify Column: {new_col.name} ({old_col.data_type} -> {new_col.data_type}){RESET}\n"
         
-        if not (migration_plan.new_tables or migration_plan.dropped_tables or migration_plan.modified_tables):
+        # Custom Objects
+        for obj in migration_plan.new_custom_objects:
+            output_content += f"{GREEN}  + Create {obj.obj_type}: {obj.name}{RESET}\n"
+            
+        for obj in migration_plan.dropped_custom_objects:
+            output_content += f"{RED}  - Drop {obj.obj_type}: {obj.name}{RESET}\n"
+            
+        for old_obj, new_obj in migration_plan.modified_custom_objects:
+            output_content += f"{YELLOW}  ~ Modify {new_obj.obj_type}: {new_obj.name}{RESET}\n"
+
+        if not (migration_plan.new_tables or migration_plan.dropped_tables or migration_plan.modified_tables or
+                migration_plan.new_custom_objects or migration_plan.dropped_custom_objects or migration_plan.modified_custom_objects):
              output_content += "No changes detected.\n"
              
         print(output_content)

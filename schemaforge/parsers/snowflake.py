@@ -3,6 +3,7 @@ from schemaforge.models import Table, CustomObject, Schema
 import sqlparse
 from sqlparse.sql import Statement, Token
 from sqlparse.tokens import Keyword, DML, DDL, Name
+import sys
 
 class SnowflakeParser(GenericSQLParser):
     def _clean_type(self, type_str):
