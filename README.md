@@ -12,10 +12,34 @@ SchemaForge is an enterprise-grade utility for managing database schemas as code
 
 ## Installation
 
+### Option 1: Pre-built Binaries (Recommended)
+No Python installation required.
+
+1.  Go to the [Releases Page](https://github.com/structlabsinc/schemaforge/releases/latest).
+2.  Download the binary for your OS:
+    *   **Linux**: `sf-linux-amd64`
+    *   **Windows**: `sf-windows-amd64.exe`
+    *   **macOS**: `sf-macos-amd64`
+3.  **Linux/macOS**: Make it executable and move to PATH:
+    ```bash
+    chmod +x sf-linux-amd64
+    sudo mv sf-linux-amd64 /usr/local/bin/sf
+    ```
+4.  **Windows**: Rename to `sf.exe` and add the folder to your System PATH.
+5.  Verify:
+    ```bash
+    sf --version
+    ```
+
+### Option 2: From Source (Python)
+Requires Python 3.9+.
+
 ```bash
 git clone https://github.com/structlabsinc/schemaforge.git
 cd schemaforge
 pip install -r requirements.txt
+# Run via python
+python3 schemaforge/main.py --help
 ```
 
 ## Usage Scenarios
