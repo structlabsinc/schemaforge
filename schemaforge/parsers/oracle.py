@@ -42,9 +42,10 @@ class OracleParser(GenericSQLParser):
         # Check for PL/SQL objects first
         stmt_str = str(statement).upper()
         
-        for kw in ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'TRIGGER', 'SEQUENCE', 'SYNONYM'):
+        for kw in ('FUNCTION', 'PROCEDURE', 'PACKAGE BODY', 'PACKAGE', 'TRIGGER', 'SEQUENCE', 'SYNONYM'):
             # Check if CREATE [OR REPLACE] KW ...
             # Regex is safer for multi-token keywords
+            # For PACKAGE BODY, we need to be careful not to match PACKAGE if PACKAGE BODY is present
             if re.search(rf'CREATE\s+(?:OR\s+REPLACE\s+)?{kw}\s+', stmt_str):
                 obj_type = kw
                 # Extract name
