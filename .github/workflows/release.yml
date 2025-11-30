@@ -1,0 +1,68 @@
+name: Release SchemaForge
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: sf
+            asset_name: sf-linux-amd64
+          - os: windows-latest
+            artifact_name: sf.exe
+            asset_name: sf-windows-amd64.exe
+          - os: macos-latest
+            artifact_name: sf
+            asset_name: sf-macos-amd64
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller --onefile --name ${{ matrix.artifact_name }} sf.py
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.asset_name }}
+        path: dist/${{ matrix.artifact_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          sf-linux-amd64/sf
+          sf-windows-amd64.exe/sf.exe
+          sf-macos-amd64/sf
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
