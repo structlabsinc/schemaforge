@@ -1,6 +1,7 @@
 from schemaforge.parsers.generic_sql import GenericSQLParser
 
 from schemaforge.models import Table, CustomObject, Schema, Column, Index
+from schemaforge.parsers.utils import normalize_sql
 import sqlparse
 from sqlparse.sql import Statement, Token
 from sqlparse.tokens import Keyword, DML, DDL, Name
@@ -38,7 +39,7 @@ class PostgresParser(GenericSQLParser):
                 self.schema.custom_objects.append(CustomObject(
                     obj_type=kw,
                     name=obj_name,
-                    properties={'raw_sql': str(statement).strip()}
+                    properties={'raw_sql': normalize_sql(str(statement))}
                 ))
                 return
 

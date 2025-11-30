@@ -1,6 +1,7 @@
 from schemaforge.parsers.generic_sql import GenericSQLParser
 
 from schemaforge.models import Table, CustomObject, Schema, Column
+from schemaforge.parsers.utils import normalize_sql
 import sqlparse
 from sqlparse.sql import Statement, Token
 from sqlparse.tokens import Keyword, DML, DDL, Name
@@ -47,7 +48,7 @@ class DB2Parser(GenericSQLParser):
              self.schema.custom_objects.append(CustomObject(
                 obj_type='ALIAS',
                 name=obj_name,
-                properties={'raw_sql': str(statement).strip()}
+                properties={'raw_sql': normalize_sql(str(statement))}
             ))
 
     def _process_db2_table(self, statement):

@@ -1,5 +1,8 @@
+
 from schemaforge.parsers.generic_sql import GenericSQLParser
-from schemaforge.models import Table, CustomObject, Schema
+from schemaforge.models import Schema, Table, Column, CustomObject
+from schemaforge.parsers.base import BaseParser
+from schemaforge.parsers.utils import normalize_sql
 import sqlparse
 from sqlparse.sql import Statement, Token
 from sqlparse.tokens import Keyword, DML, DDL, Name
@@ -112,13 +115,7 @@ class SnowflakeParser(GenericSQLParser):
             if obj_name:
                 # Normalize SQL for robust comparison
                 raw_sql = str(statement)
-                normalized_sql = sqlparse.format(
-                    raw_sql,
-                    keyword_case='upper',
-                    identifier_case='upper',
-                    strip_comments=True,
-                    reindent=True
-                )
+                normalized_sql = normalize_sql(raw_sql)
                 self.schema.custom_objects.append(CustomObject(
                     obj_type=obj_type,
                     name=obj_name,
