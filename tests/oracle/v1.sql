@@ -1,0 +1,7 @@
+CREATE TABLE employees (
+    emp_id NUMBER(10) PRIMARY KEY,
+    first_name VARCHAR2(50),
+    last_name VARCHAR2(50),
+    hire_date DATE,
+    salary NUMBER(8, 2)
+);
