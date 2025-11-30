@@ -46,6 +46,12 @@ Generate artifacts for deployment without printing to stdout (silent mode).
 sf compare --source v1.sql --target v2.sql --dialect snowflake --json-out plan.json --sql-out migration.sql
 ```
 
+## Governance
+See [GOVERNANCE.md](GOVERNANCE.md) for branch protection rules and release policies.
+
+## License
+MIT
+
 ## Live Database Comparison (`compare-livedb`)
 
 Instead of comparing two files, you can compare a live database (Source) against your local schema definition (Target).
