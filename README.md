@@ -25,25 +25,25 @@ The CLI supports flexible output combinations to suit different workflows.
 ### 1. Preview Changes (Human-Readable Plan)
 Best for local development to see what *would* happen.
 ```bash
-python3 schemaforge/main.py compare --source v1.sql --target v2.sql --dialect postgres --plan
+sf compare --source v1.sql --target v2.sql --dialect postgres --plan
 ```
 
 ### 2. CI/CD Integration (Plan + JSON)
 Generate a human-readable plan for logs and a JSON file for programmatic checks (e.g., failing the build on destructive changes).
 ```bash
-python3 schemaforge/main.py compare --source v1.sql --target v2.sql --dialect mysql --plan --json-out plan.json
+sf compare --source v1.sql --target v2.sql --dialect mysql --plan --json-out plan.json
 ```
 
 ### 3. Developer Workflow (Plan + SQL)
 Review the plan and generate the migration script in one go.
 ```bash
-python3 schemaforge/main.py compare --source v1.sql --target v2.sql --dialect oracle --plan --sql-out migration.sql
+sf compare --source v1.sql --target v2.sql --dialect oracle --plan --sql-out migration.sql
 ```
 
 ### 4. Automated Deployment (JSON + SQL)
 Generate artifacts for deployment without printing to stdout (silent mode).
 ```bash
-python3 schemaforge/main.py compare --source v1.sql --target v2.sql --dialect snowflake --json-out plan.json --sql-out migration.sql
+sf compare --source v1.sql --target v2.sql --dialect snowflake --json-out plan.json --sql-out migration.sql
 ```
 
 ## Live Database Comparison (`compare-livedb`)
@@ -52,7 +52,7 @@ Instead of comparing two files, you can compare a live database (Source) against
 
 ### Basic Usage
 ```bash
-python3 schemaforge/main.py compare-livedb \
+sf compare-livedb \
     --source "postgresql://user:pass@localhost:5432/mydb" \
     --target ./schema/ \
     --dialect postgres \
@@ -64,7 +64,7 @@ python3 schemaforge/main.py compare-livedb \
 *   **Object Filtering**: Use `--object-types` to limit the comparison (e.g., only check tables and views).
 
 ```bash
-python3 schemaforge/main.py compare-livedb \
+sf compare-livedb \
     --source "mysql://user:pass@prod-db:3306/ecommerce" \
     --target ./src/schema/ \
     --dialect mysql \
