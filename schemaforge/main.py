@@ -187,7 +187,18 @@ def _handle_output(args, migration_plan):
             for col in diff.dropped_columns:
                 output_content += f"{RED}    - Drop Column: {col.name}{RESET}\n"
             for old_col, new_col in diff.modified_columns:
-                output_content += f"{YELLOW}    ~ Modify Column: {new_col.name} ({old_col.data_type} -> {new_col.data_type}){RESET}\n"
+                changes = []
+                if old_col.data_type != new_col.data_type:
+                    changes.append(f"Type: {old_col.data_type} -> {new_col.data_type}")
+                if old_col.is_nullable != new_col.is_nullable:
+                    changes.append(f"Nullable: {old_col.is_nullable} -> {new_col.is_nullable}")
+                if old_col.default_value != new_col.default_value:
+                    changes.append(f"Default: {old_col.default_value} -> {new_col.default_value}")
+                if old_col.is_primary_key != new_col.is_primary_key:
+                    changes.append(f"PK: {old_col.is_primary_key} -> {new_col.is_primary_key}")
+                
+                change_str = ", ".join(changes)
+                output_content += f"{YELLOW}    ~ Modify Column: {new_col.name} ({change_str}){RESET}\n"
         
         # Custom Objects
         for obj in migration_plan.new_custom_objects:
