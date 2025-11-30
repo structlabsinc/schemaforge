@@ -7,6 +7,7 @@ import time
 from generator import ScenarioGenerator
 
 DAC_CLI = "python3 schemaforge/main.py"
+# DAC_CLI = "./dist/sf"
 
 def run_single_scenario(scenario_dir, dialect):
     source = os.path.join(scenario_dir, "source.sql")

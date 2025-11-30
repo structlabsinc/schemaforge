@@ -2,3 +2,8 @@ dist/
 build/
 __pycache__/
 *.pyc
+*.spec
+verify_*.txt
+binary_verify_*.txt
+tests/blackbox/scenarios/*
+!tests/blackbox/scenarios/.gitkeep
