@@ -13,8 +13,8 @@ SchemaForge is an enterprise-grade utility for managing database schemas as code
 ## Installation
 
 ```bash
-git clone https://github.com/your-repo/dac-tool.git
-cd dac-tool
+git clone https://github.com/structlabsinc/schemaforge.git
+cd schemaforge
 pip install -r requirements.txt
 ```
 
