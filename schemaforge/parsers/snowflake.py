@@ -110,10 +110,19 @@ class SnowflakeParser(GenericSQLParser):
         else:
             # Custom Object
             if obj_name:
+                # Normalize SQL for robust comparison
+                raw_sql = str(statement)
+                normalized_sql = sqlparse.format(
+                    raw_sql,
+                    keyword_case='upper',
+                    identifier_case='upper',
+                    strip_comments=True,
+                    reindent=True
+                )
                 self.schema.custom_objects.append(CustomObject(
                     obj_type=obj_type,
                     name=obj_name,
-                    properties={'raw_sql': str(statement).strip()} 
+                    properties={'raw_sql': normalized_sql} 
                 ))
 
     def _process_snowflake_table(self, statement, is_transient):
