@@ -60,9 +60,20 @@ jobs:
 
     - name: Prepare Release Assets
       run: |
-        mv sf-linux-amd64/sf sf-linux-amd64
-        mv sf-windows-amd64.exe/sf.exe sf-windows-amd64.exe
-        mv sf-macos-amd64/sf sf-macos-amd64
+        # Linux
+        mv sf-linux-amd64/sf sf-linux-amd64.tmp
+        rm -rf sf-linux-amd64
+        mv sf-linux-amd64.tmp sf-linux-amd64
+        
+        # Windows
+        mv sf-windows-amd64.exe/sf.exe sf-windows-amd64.exe.tmp
+        rm -rf sf-windows-amd64.exe
+        mv sf-windows-amd64.exe.tmp sf-windows-amd64.exe
+        
+        # MacOS
+        mv sf-macos-amd64/sf sf-macos-amd64.tmp
+        rm -rf sf-macos-amd64
+        mv sf-macos-amd64.tmp sf-macos-amd64
 
     - name: Create Release
       id: create_release
