@@ -227,6 +227,18 @@ def _handle_output(args, migration_plan):
                     output_line += f"Tag"
                 else:
                     output_line += f"{obj.obj_type}: {obj.name}"
+            elif obj.obj_type == 'ALTER TABLE':
+                name_upper = obj.name.upper()
+                if 'UNSET MASKING POLICY' in name_upper:
+                    output_line += f"Unset Policy"
+                elif 'DROP ROW ACCESS POLICY' in name_upper:
+                    output_line += f"Drop Policy"
+                elif 'SEARCH OPTIMIZATION' in name_upper:
+                    output_line += f"Search Optimization"
+                elif 'UNSET TAG' in name_upper:
+                    output_line += f"Unset Tag"
+                else:
+                    output_line += f"{obj.obj_type}: {obj.name}"
             elif obj.obj_type == 'ALTER TASK':
                 output_line += f"Alter Task"
             elif obj.obj_type == 'ALTER ALERT':
