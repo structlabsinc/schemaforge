@@ -257,18 +257,22 @@ class GenericSQLParser(BaseParser):
     def _extract_pk_cols(self, parenthesis, table: Table):
         content = parenthesis.tokens[1:-1]
         for t in content:
-            col_name = None
-            if isinstance(t, Identifier):
-                col_name = t.get_real_name()
+            col_names = []
+            if isinstance(t, IdentifierList):
+                for id_token in t.get_identifiers():
+                    col_names.append(id_token.get_real_name())
+            elif isinstance(t, Identifier):
+                col_names.append(t.get_real_name())
             elif t.ttype is sqlparse.tokens.Name:
-                col_name = t.value
+                col_names.append(t.value)
             
-            if col_name:
-                clean_col_name = self._clean_name(col_name)
-                for col in table.columns:
-                    if col.name == clean_col_name:
-                        col.is_primary_key = True
-                        break
+            for col_name in col_names:
+                if col_name:
+                    clean_col_name = self._clean_name(col_name)
+                    for col in table.columns:
+                        if col.name == clean_col_name:
+                            col.is_primary_key = True
+                            break
 
     def _extract_foreign_key(self, tokens, table: Table, name: str):
         # Find columns
@@ -328,14 +332,18 @@ class GenericSQLParser(BaseParser):
         content = parenthesis.tokens[1:-1]
         cols = []
         for t in content:
-            col_name = None
-            if isinstance(t, Identifier):
-                col_name = t.get_real_name()
+            col_names = []
+            if isinstance(t, IdentifierList):
+                for id_token in t.get_identifiers():
+                    col_names.append(id_token.get_real_name())
+            elif isinstance(t, Identifier):
+                col_names.append(t.get_real_name())
             elif t.ttype is sqlparse.tokens.Name:
-                col_name = t.value
+                col_names.append(t.value)
             
-            if col_name:
-                cols.append(self._clean_name(col_name))
+            for col_name in col_names:
+                if col_name:
+                    cols.append(self._clean_name(col_name))
         
         if cols:
             # Add as Unique Index

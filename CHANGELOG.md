@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.12] - 2025-12-01
+### Fixed
+- **Constraints**: Fixed parsing of Composite Primary Keys and Unique Keys (table-level constraints).
+- **Constraints**: Fixed parsing of Named Constraints (`CONSTRAINT name ...`).
+- **Constraints**: Fixed parsing of Self-Referencing and Cross-Schema Foreign Keys.
+- **Governance**: Added support for `UNSET MASKING POLICY`, `DROP ROW ACCESS POLICY`, and `UNSET TAG` in `ALTER TABLE`.
+- **Parsing**: Improved `IdentifierList` handling in `GenericSQLParser` for constraint extraction.
+
 ## [1.0.11] - 2025-12-01
 ### Fixed
 - **Critical Regression**: Fixed `NameError: name 't' is not defined` in `GenericSQLParser` which caused crashes during default value parsing.

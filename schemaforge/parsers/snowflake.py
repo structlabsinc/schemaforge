@@ -328,34 +328,68 @@ class SnowflakeParser(GenericSQLParser):
 
         # Masking Policy
         # ALTER TABLE t MODIFY COLUMN c SET MASKING POLICY p
+        # ALTER TABLE t MODIFY COLUMN c UNSET MASKING POLICY
         if 'MASKING POLICY' in stmt_str:
+            # SET
             match_mp = re.search(r'MODIFY\s+COLUMN\s+(\w+)\s+SET\s+MASKING\s+POLICY\s+(\w+)', stmt_str, re.IGNORECASE)
             if match_mp:
                 col_name = match_mp.group(1)
                 policy_name = match_mp.group(2)
                 table.policies.append(f"MASKING POLICY {policy_name} ON {col_name}")
-        
+            
+            # UNSET
+            match_mp_unset = re.search(r'MODIFY\s+COLUMN\s+(\w+)\s+UNSET\s+MASKING\s+POLICY', stmt_str, re.IGNORECASE)
+            if match_mp_unset:
+                col_name = match_mp_unset.group(1)
+                # Remove any masking policy on this column
+                # Format: "MASKING POLICY {policy_name} ON {col_name}"
+                # We need to find and remove it.
+                # Since policy name is unknown in UNSET, we filter by suffix.
+                suffix = f" ON {col_name}"
+                table.policies = [p for p in table.policies if not (p.startswith("MASKING POLICY") and p.endswith(suffix))]
+
         # Row Access Policy
         # ALTER TABLE t ADD ROW ACCESS POLICY p ON (c)
+        # ALTER TABLE t DROP ROW ACCESS POLICY p
         if 'ROW ACCESS POLICY' in stmt_str:
+            # ADD
             match_rap = re.search(r'ADD\s+ROW\s+ACCESS\s+POLICY\s+(\w+)\s+ON\s*\((.*?)\)', stmt_str, re.IGNORECASE)
             if match_rap:
                 policy_name = match_rap.group(1)
                 cols = match_rap.group(2)
                 table.policies.append(f"ROW ACCESS POLICY {policy_name} ON ({cols})")
+            
+            # DROP
+            match_rap_drop = re.search(r'DROP\s+ROW\s+ACCESS\s+POLICY\s+(\w+)', stmt_str, re.IGNORECASE)
+            if match_rap_drop:
+                policy_name = match_rap_drop.group(1)
+                # Remove by policy name prefix
+                prefix = f"ROW ACCESS POLICY {policy_name}"
+                table.policies = [p for p in table.policies if not p.startswith(prefix)]
                 
         # Tags
         # ALTER TABLE t SET TAG tag1 = 'val1', tag2 = 'val2'
-        if 'SET TAG' in stmt_str:
-            match_tag = re.search(r'SET\s+TAG\s+(.*)', stmt_str, re.IGNORECASE)
-            if match_tag:
-                tags_content = match_tag.group(1).rstrip(';') # Remove trailing semicolon
-                # Split by comma, but be careful of quoted values containing commas
-                # Simple split for now
-                tag_assignments = tags_content.split(',')
-                for tag_assign in tag_assignments:
-                    if '=' in tag_assign:
-                        k, v = tag_assign.split('=', 1)
-                        # Clean value: strip whitespace, then quotes, then whitespace again
-                        clean_v = v.strip().strip("'").strip()
-                        table.tags[self._clean_name(k.strip())] = clean_v
+        # ALTER TABLE t UNSET TAG tag1, tag2
+        if 'TAG' in stmt_str:
+            # SET
+            if 'SET TAG' in stmt_str:
+                match_tag = re.search(r'SET\s+TAG\s+(.*)', stmt_str, re.IGNORECASE)
+                if match_tag:
+                    tags_content = match_tag.group(1).rstrip(';') # Remove trailing semicolon
+                    tag_assignments = tags_content.split(',')
+                    for tag_assign in tag_assignments:
+                        if '=' in tag_assign:
+                            k, v = tag_assign.split('=', 1)
+                            clean_v = v.strip().strip("'").strip()
+                            table.tags[self._clean_name(k.strip())] = clean_v
+            
+            # UNSET
+            if 'UNSET TAG' in stmt_str:
+                match_tag_unset = re.search(r'UNSET\s+TAG\s+(.*)', stmt_str, re.IGNORECASE)
+                if match_tag_unset:
+                    tags_content = match_tag_unset.group(1).rstrip(';')
+                    tag_names = tags_content.split(',')
+                    for tag_name in tag_names:
+                        clean_tag = self._clean_name(tag_name.strip())
+                        if clean_tag in table.tags:
+                            del table.tags[clean_tag]
