@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import os
 
 # Read version
-with open('VERSION', 'r') as f:
+with open(os.path.join('schemaforge', 'VERSION'), 'r') as f:
     version = f.read().strip()
 
 setup(

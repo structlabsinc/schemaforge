@@ -96,7 +96,7 @@ def main():
             base_path = sys._MEIPASS
         else:
             # Running as script
-            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            base_path = os.path.dirname(os.path.abspath(__file__))
             
         version_path = os.path.join(base_path, 'VERSION')
         if os.path.exists(version_path):
