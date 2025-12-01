@@ -213,9 +213,35 @@ def _handle_output(args, migration_plan):
                 change_str = ", ".join(changes)
                 output_content += f"{YELLOW}    ~ Modify Column: {new_col.name} ({change_str}){RESET}\n"
         
-        # Custom Objects
+        # Custom Objects - with keyword extraction for better output
         for obj in migration_plan.new_custom_objects:
-            output_content += f"{GREEN}  + Create {obj.obj_type}: {obj.name}{RESET}\n"
+            # Extract key information based on object type
+            output_line = f"{GREEN}  + "
+            
+            if obj.obj_type == 'ALTER DATABASE' or obj.obj_type == 'ALTER SCHEMA':
+                # Extract the specific property being changed
+                name_upper = obj.name.upper()
+                if 'DATA_RETENTION' in name_upper:
+                    output_line += f"DATA_RETENTION"
+                elif 'TAG' in name_upper:
+                    output_line += f"Tag"
+                else:
+                    output_line += f"{obj.obj_type}: {obj.name}"
+            elif obj.obj_type == 'ALTER TASK':
+                output_line += f"Alter Task"
+            elif obj.obj_type == 'ALTER ALERT':
+                output_line += f"Alter Alert"
+            elif obj.obj_type == 'ALTER VIEW':
+                if 'TAG' in obj.name.upper():
+                    output_line += f"Tag"
+                else:
+                    output_line += f"{obj.obj_type}: {obj.name}"
+            elif obj.obj_type == 'COMMENT':
+                output_line += f"Comment"
+            else:
+                output_line += f"Create {obj.obj_type}: {obj.name}"
+            
+            output_content += output_line + f"{RESET}\n"
             
         for obj in migration_plan.dropped_custom_objects:
             output_content += f"{RED}  - Drop {obj.obj_type}: {obj.name}{RESET}\n"

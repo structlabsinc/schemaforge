@@ -66,7 +66,7 @@ class SnowflakeParser(GenericSQLParser):
 
     def _process_grant_revoke(self, statement):
         # Parse GRANT/REVOKE as CustomObject
-        stmt_str = str(statement)
+        stmt_upper = str(statement)
         # Extract object name if possible, or just use the whole statement as name/type
         # GRANT SELECT ON TABLE T TO ROLE R
         # Type: GRANT
@@ -76,7 +76,7 @@ class SnowflakeParser(GenericSQLParser):
         command = tokens[0].value.upper()
         
         # Normalize SQL
-        normalized_sql = normalize_sql(stmt_str)
+        normalized_sql = normalize_sql(stmt_upper)
         
         self.schema.custom_objects.append(CustomObject(
             obj_type=command,
@@ -342,11 +342,11 @@ class SnowflakeParser(GenericSQLParser):
                     break
         
         # Parse Advanced Properties (CLUSTER BY, RETENTION, COMMENT)
-        stmt_str = str(statement).upper()
+        stmt_upper = str(statement).upper()
         
         # Cluster By
         # Cluster By
-        if 'CLUSTER BY' in stmt_str:
+        if 'CLUSTER BY' in stmt_upper:
             # Use token iteration to find CLUSTER BY and the following Parenthesis
             for i, token in enumerate(statement.tokens):
                 if token.value.upper() == 'CLUSTER':
@@ -386,16 +386,16 @@ class SnowflakeParser(GenericSQLParser):
                 
 
         # Retention
-        if 'DATA_RETENTION_TIME_IN_DAYS' in stmt_str:
+        if 'DATA_RETENTION_TIME_IN_DAYS' in stmt_upper:
             import re
-            match = re.search(r'DATA_RETENTION_TIME_IN_DAYS\s*=\s*(\d+)', stmt_str)
+            match = re.search(r'DATA_RETENTION_TIME_IN_DAYS\s*=\s*(\d+)', stmt_upper)
             if match:
                 table.retention_days = int(match.group(1))
                 
         # Comment
-        if 'COMMENT' in stmt_str:
+        if 'COMMENT' in stmt_upper:
             import re
-            match = re.search(r"COMMENT\s*=\s*'([^']*)'", stmt_str)
+            match = re.search(r"COMMENT\s*=\s*'([^']*)'", stmt_upper)
             if match:
                 table.comment = match.group(1)
 
@@ -461,16 +461,16 @@ class SnowflakeParser(GenericSQLParser):
         # Masking Policy
         # ALTER TABLE t MODIFY COLUMN c SET MASKING POLICY p
         # ALTER TABLE t MODIFY COLUMN c UNSET MASKING POLICY
-        if 'MASKING POLICY' in stmt_str:
+        if 'MASKING POLICY' in stmt_upper:
             # SET
-            match_mp = re.search(r'MODIFY\s+COLUMN\s+(\w+)\s+SET\s+MASKING\s+POLICY\s+(\w+)', stmt_str, re.IGNORECASE)
+            match_mp = re.search(r'MODIFY\s+COLUMN\s+(\w+)\s+SET\s+MASKING\s+POLICY\s+(\w+)', stmt_upper, re.IGNORECASE)
             if match_mp:
                 col_name = match_mp.group(1)
                 policy_name = match_mp.group(2)
                 table.policies.append(f"MASKING POLICY {policy_name} ON {col_name}")
             
             # UNSET
-            match_mp_unset = re.search(r'MODIFY\s+COLUMN\s+(\w+)\s+UNSET\s+MASKING\s+POLICY', stmt_str, re.IGNORECASE)
+            match_mp_unset = re.search(r'MODIFY\s+COLUMN\s+(\w+)\s+UNSET\s+MASKING\s+POLICY', stmt_upper, re.IGNORECASE)
             if match_mp_unset:
                 col_name = match_mp_unset.group(1)
                 # Remove any masking policy on this column
@@ -483,16 +483,16 @@ class SnowflakeParser(GenericSQLParser):
         # Row Access Policy
         # ALTER TABLE t ADD ROW ACCESS POLICY p ON (c)
         # ALTER TABLE t DROP ROW ACCESS POLICY p
-        if 'ROW ACCESS POLICY' in stmt_str:
+        if 'ROW ACCESS POLICY' in stmt_upper:
             # ADD
-            match_rap = re.search(r'ADD\s+ROW\s+ACCESS\s+POLICY\s+(\w+)\s+ON\s*\((.*?)\)', stmt_str, re.IGNORECASE)
+            match_rap = re.search(r'ADD\s+ROW\s+ACCESS\s+POLICY\s+(\w+)\s+ON\s*\((.*?)\)', stmt_upper, re.IGNORECASE)
             if match_rap:
                 policy_name = match_rap.group(1)
                 cols = match_rap.group(2)
                 table.policies.append(f"ROW ACCESS POLICY {policy_name} ON ({cols})")
             
             # DROP
-            match_rap_drop = re.search(r'DROP\s+ROW\s+ACCESS\s+POLICY\s+(\w+)', stmt_str, re.IGNORECASE)
+            match_rap_drop = re.search(r'DROP\s+ROW\s+ACCESS\s+POLICY\s+(\w+)', stmt_upper, re.IGNORECASE)
             if match_rap_drop:
                 policy_name = match_rap_drop.group(1)
                 # Remove by policy name prefix
@@ -502,10 +502,10 @@ class SnowflakeParser(GenericSQLParser):
         # Tags
         # ALTER TABLE t SET TAG tag1 = 'val1', tag2 = 'val2'
         # ALTER TABLE t UNSET TAG tag1, tag2
-        if 'TAG' in stmt_str:
+        if 'TAG' in stmt_upper:
             # SET
-            if 'SET TAG' in stmt_str:
-                match_tag = re.search(r'SET\s+TAG\s+(.*)', stmt_str, re.IGNORECASE)
+            if 'SET TAG' in stmt_upper:
+                match_tag = re.search(r'SET\s+TAG\s+(.*)', stmt_upper, re.IGNORECASE)
                 if match_tag:
                     tags_content = match_tag.group(1).rstrip(';') # Remove trailing semicolon
                     tag_assignments = tags_content.split(',')
@@ -516,8 +516,8 @@ class SnowflakeParser(GenericSQLParser):
                             table.tags[self._clean_name(k.strip())] = clean_v
             
             # UNSET
-            if 'UNSET TAG' in stmt_str:
-                match_tag_unset = re.search(r'UNSET\s+TAG\s+(.*)', stmt_str, re.IGNORECASE)
+            if 'UNSET TAG' in stmt_upper:
+                match_tag_unset = re.search(r'UNSET\s+TAG\s+(.*)', stmt_upper, re.IGNORECASE)
                 if match_tag_unset:
                     tags_content = match_tag_unset.group(1).rstrip(';')
                     tag_names = tags_content.split(',')
