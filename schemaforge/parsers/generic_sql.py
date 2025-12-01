@@ -96,10 +96,36 @@ class GenericSQLParser(BaseParser):
     def _extract_create_table(self, statement) -> Optional[Table]:
         table_name = None
         
-        for token in statement.tokens:
-            if isinstance(token, Identifier):
-                table_name = token.get_real_name()
+        # Find TABLE keyword index
+        table_keyword_idx = -1
+        for i, token in enumerate(statement.tokens):
+            if token.value.upper() == 'TABLE':
+                table_keyword_idx = i
                 break
+        
+        # If TABLE found, look for identifier after it
+        if table_keyword_idx != -1:
+            for i in range(table_keyword_idx + 1, len(statement.tokens)):
+                token = statement.tokens[i]
+                if isinstance(token, Identifier):
+                    real_name = token.get_real_name()
+                    # Check if quoted in value to preserve case
+                    if f'"{real_name}"' in token.value or f'`{real_name}`' in token.value or f'[{real_name}]' in token.value:
+                        table_name = f'"{real_name}"'
+                    else:
+                        table_name = real_name
+                    break
+        else:
+            # Fallback
+            for token in statement.tokens:
+                if isinstance(token, Identifier):
+                    real_name = token.get_real_name()
+                    # Check if quoted in value to preserve case
+                    if f'"{real_name}"' in token.value or f'`{real_name}`' in token.value or f'[{real_name}]' in token.value:
+                        table_name = f'"{real_name}"'
+                    else:
+                        table_name = real_name
+                    break
                 
         if not table_name:
             return None
@@ -444,6 +470,11 @@ class GenericSQLParser(BaseParser):
         # Normalize to lower case and strip quotes for comparison
         # Also strip invisible characters like Zero Width Space (U+200B)
         name = name.replace(chr(0x200b), '')
+        
+        # If quoted, preserve case but strip quotes
+        if name.startswith('"') and name.endswith('"'):
+            return name[1:-1]
+        
         return name.strip('`"[] ').lower()
 
     def _clean_type(self, data_type: str) -> str:

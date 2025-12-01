@@ -78,7 +78,43 @@ class TestMasterBugReport(unittest.TestCase):
         """
         schema = self.parser.parse(sql)
         # Should be detected as a Table or CustomObject
-        self.assertTrue(len(schema.tables) > 0 or len(schema.custom_objects) > 0, "Iceberg table not detected")
+        # Currently it might be parsed as a standard table if 'ICEBERG' is ignored, 
+        # or missed if 'ICEBERG' confuses the parser.
+        # We want it to be at least a Table.
+        self.assertTrue(len(schema.tables) > 0, "Iceberg table not detected as Table")
+        self.assertEqual(schema.tables[0].name, 't_iceberg')
+
+    def test_case_sensitivity_quoted(self):
+        print("\n--- Test: Case Sensitivity (Quoted) ---")
+        sql = 'CREATE TABLE "CaseSensitive" ("Col" INT);'
+        schema = self.parser.parse(sql)
+        table = schema.tables[0]
+        
+        # Expectation: "CaseSensitive" should be preserved as is (or maybe just the name without quotes)
+        # But definitely NOT lowercased if it was quoted.
+        # Current logic forces lowercase in _clean_name.
+        
+        print(f"Table Name: {table.name}")
+        print(f"Column Name: {table.columns[0].name}")
+        
+        # If we are strict, it should be 'CaseSensitive'. 
+        # If we normalize everything to lowercase, that's a design choice but might break things.
+        # The bug report says "Case Sensitivity in Quoted Identifiers" failed.
+        # This implies we SHOULD preserve case for quoted identifiers.
+        
+        self.assertEqual(table.name, 'CaseSensitive')
+        self.assertEqual(table.columns[0].name, 'Col')
+
+    def test_modern_features_others(self):
+        print("\n--- Test: Modern Features (Hybrid/Event) ---")
+        sql = """
+        CREATE HYBRID TABLE t_hybrid (id INT);
+        CREATE EVENT TABLE t_event (id INT);
+        """
+        schema = self.parser.parse(sql)
+        names = [t.name for t in schema.tables]
+        self.assertIn('t_hybrid', names)
+        self.assertIn('t_event', names)
 
 if __name__ == '__main__':
     unittest.main()

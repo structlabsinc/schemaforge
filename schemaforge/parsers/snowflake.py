@@ -73,6 +73,19 @@ class SnowflakeParser(GenericSQLParser):
                 is_transient = True
                 continue
                 
+            # Check for Modern Table Types (ICEBERG, HYBRID, EVENT)
+            if val in ('ICEBERG', 'HYBRID', 'EVENT'):
+                # Check if next token is TABLE
+                idx, next_token = self._get_next_token(tokens, i + 1)
+                if next_token and next_token.value.upper() == 'TABLE':
+                    obj_type = 'TABLE' # Treat as table for now
+                    # We could add a property like is_iceberg=True later if needed
+                    # For now, just ensuring it's parsed as a TABLE is enough to fix "Ignored" status.
+                    
+                    # Advance 'i' to the 'TABLE' token so the subsequent name extraction works correctly
+                    i = idx
+                    break # Found object type and advanced index, break from loop
+            
             # Standard Objects (usually separate tokens)
             if val in ('TABLE', 'VIEW', 'SEQUENCE', 'PROCEDURE', 'STREAM', 'SCHEMA'):
                 obj_type = val
@@ -81,7 +94,12 @@ class SnowflakeParser(GenericSQLParser):
                 if name_token:
                     # Handle Function/Identifier wrappers
                     if isinstance(name_token, (sqlparse.sql.Identifier, sqlparse.sql.Function)):
-                        obj_name = name_token.get_real_name()
+                        real_name = name_token.get_real_name()
+                        # Check if quoted in value to preserve case
+                        if f'"{real_name}"' in name_token.value or f'`{real_name}`' in name_token.value or f'[{real_name}]' in name_token.value:
+                            obj_name = f'"{real_name}"'
+                        else:
+                            obj_name = real_name
                     else:
                         obj_name = name_token.value
                     
@@ -225,7 +243,12 @@ class SnowflakeParser(GenericSQLParser):
 
         name_token = tokens[name_idx]
         if isinstance(name_token, (sqlparse.sql.Identifier, sqlparse.sql.Function)):
-            table_name = name_token.get_real_name()
+            real_name = name_token.get_real_name()
+            # Check if quoted in value to preserve case
+            if f'"{real_name}"' in name_token.value or f'`{real_name}`' in name_token.value or f'[{real_name}]' in name_token.value:
+                table_name = f'"{real_name}"'
+            else:
+                table_name = real_name
         else:
             table_name = name_token.value
             
