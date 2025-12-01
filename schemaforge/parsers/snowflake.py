@@ -83,6 +83,8 @@ class SnowflakeParser(GenericSQLParser):
         obj_type = None
         obj_name = None
         is_transient = False
+        is_secure = False
+        is_external = False
         
         # Helper to check if token value matches or starts with keyword
         def check_keyword(token_val, keyword):
@@ -94,8 +96,15 @@ class SnowflakeParser(GenericSQLParser):
             
             val = token.value.upper()
             
+            # Track modifiers
             if val == 'TRANSIENT':
                 is_transient = True
+                continue
+            if val == 'SECURE':
+                is_secure = True
+                continue
+            if val == 'EXTERNAL':
+                is_external = True
                 continue
                 
             # Check for Modern Table Types (ICEBERG, HYBRID, EVENT, DYNAMIC)
@@ -122,6 +131,9 @@ class SnowflakeParser(GenericSQLParser):
             # Standard Objects (usually separate tokens)
             if val in ('TABLE', 'VIEW', 'SEQUENCE', 'PROCEDURE', 'STREAM', 'SCHEMA'):
                 obj_type = val
+                # Apply modifiers
+                if val == 'VIEW' and is_secure:
+                    obj_type = 'SECURE VIEW'
                 # Name is next token
                 idx, name_token = self._get_next_token(tokens, i + 1)
                 if name_token:
@@ -153,6 +165,9 @@ class SnowflakeParser(GenericSQLParser):
             for kw in ('STAGE', 'PIPE', 'TASK', 'STREAM', 'TAG', 'FUNCTION', 'ALERT'):
                 if check_keyword(val, kw):
                     obj_type = kw
+                    # Apply modifiers for FUNCTION
+                    if kw == 'FUNCTION' and is_external:
+                        obj_type = 'EXTERNAL FUNCTION'
                     if val == kw:
                         # Separate token
                         idx, name_token = self._get_next_token(tokens, i + 1)
