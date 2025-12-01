@@ -174,19 +174,20 @@ class SnowflakeParser(GenericSQLParser):
                 
             # FILE FORMAT
             if val == 'FILE':
-                if i + 1 < len(tokens):
-                    next_token = tokens[i+1]
+                idx, next_token = self._get_next_token(tokens, i + 1)
+                if next_token:
                     next_val = next_token.value.upper()
                     if check_keyword(next_val, 'FORMAT'):
                         obj_type = 'FILE FORMAT'
                         if next_val == 'FORMAT':
-                            if i + 2 < len(tokens):
-                                obj_name = tokens[i+2].value
+                            idx2, name_token = self._get_next_token(tokens, idx + 1)
+                            if name_token:
+                                obj_name = self._clean_name(name_token.value)
                         else:
                             # Grouped (FORMAT my_format)
                             parts = next_token.value.split(maxsplit=1)
                             if len(parts) > 1:
-                                obj_name = parts[1]
+                                obj_name = self._clean_name(parts[1])
                         break
         
         if not obj_type:

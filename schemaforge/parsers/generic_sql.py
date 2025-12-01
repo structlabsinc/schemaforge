@@ -414,11 +414,11 @@ class GenericSQLParser(BaseParser):
                             if val_upper in ('UNIQUE', 'CHECK', 'REFERENCES', 'CONSTRAINT', 'GENERATED', 'AUTO_INCREMENT', 'COMMENT'):
                                 break
                         
-                        if not t.is_whitespace:
-                            default_tokens.append(t.value)
+                        default_val_tokens.append(next_token.value)
+                        next_idx += 1
                     
-                    if default_tokens:
-                        column.default_value = " ".join(default_tokens)
+                    if default_val_tokens:
+                        column.default_value = " ".join(default_val_tokens)
                 
                 # Check for COMMENT
                 if token.value.upper() == 'COMMENT':
