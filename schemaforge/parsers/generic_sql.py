@@ -218,21 +218,12 @@ class GenericSQLParser(BaseParser):
                      content_token = tokens[1]
              
              if is_pk and content_token and isinstance(content_token, sqlparse.sql.Parenthesis):
-                 content = content_token.tokens[1:-1]
-                 for t in content:
-                     col_name = None
-                     if isinstance(t, Identifier):
-                         col_name = t.get_real_name()
-                     elif t.ttype is sqlparse.tokens.Name:
-                         col_name = t.value
-                     
-                     if col_name:
-                         # Find column and mark as PK
-                         clean_col_name = self._clean_name(col_name)
-                         for col in table.columns:
-                             if col.name == clean_col_name:
-                                 col.is_primary_key = True
-                                 break
+                 self._extract_pk_cols(content_token, table)
+                 return
+                 
+             # TODO: Handle UNIQUE, FOREIGN KEY, CHECK similarly if needed
+             # For now, just PK was reported as broken for composite keys
+             
         else:
             self._process_column(tokens, table)
 

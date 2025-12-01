@@ -48,8 +48,33 @@ class SnowflakeParser(GenericSQLParser):
                      self._process_create(statement)
                 elif first_token and first_token.value.upper() == 'ALTER':
                      self._process_alter(statement)
+                elif first_token and first_token.value.upper() in ('GRANT', 'REVOKE'):
+                     self._process_grant_revoke(statement)
+            
+            elif statement.get_type() in ('GRANT', 'REVOKE'):
+                self._process_grant_revoke(statement)
                     
         return self.schema
+
+    def _process_grant_revoke(self, statement):
+        # Parse GRANT/REVOKE as CustomObject
+        stmt_str = str(statement)
+        # Extract object name if possible, or just use the whole statement as name/type
+        # GRANT SELECT ON TABLE T TO ROLE R
+        # Type: GRANT
+        # Name: SELECT ON TABLE T TO ROLE R
+        
+        tokens = statement.tokens
+        command = tokens[0].value.upper()
+        
+        # Normalize SQL
+        normalized_sql = normalize_sql(stmt_str)
+        
+        self.schema.custom_objects.append(CustomObject(
+            obj_type=command,
+            name=normalized_sql, # Use full SQL as name for now to ensure uniqueness and visibility
+            properties={'raw_sql': normalized_sql}
+        ))
 
     def _process_create(self, statement):
         # Check for CREATE [OR REPLACE] [TRANSIENT] TABLE
@@ -73,14 +98,12 @@ class SnowflakeParser(GenericSQLParser):
                 is_transient = True
                 continue
                 
-            # Check for Modern Table Types (ICEBERG, HYBRID, EVENT)
-            if val in ('ICEBERG', 'HYBRID', 'EVENT'):
+            # Check for Modern Table Types (ICEBERG, HYBRID, EVENT, DYNAMIC)
+            if val in ('ICEBERG', 'HYBRID', 'EVENT', 'DYNAMIC'):
                 # Check if next token is TABLE
                 idx, next_token = self._get_next_token(tokens, i + 1)
                 if next_token and next_token.value.upper() == 'TABLE':
                     obj_type = 'TABLE' # Treat as table for now
-                    # We could add a property like is_iceberg=True later if needed
-                    # For now, just ensuring it's parsed as a TABLE is enough to fix "Ignored" status.
                     
                     # Advance 'i' to the 'TABLE' token so the subsequent name extraction works correctly
                     i = idx

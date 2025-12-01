@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.14] - 2025-12-01
+### Fixed
+- **Dynamic Tables**: Fixed regression where `DYNAMIC TABLE` was not detected.
+- **Constraints**: Fixed parsing of Composite Primary Keys defined inline (e.g., `PRIMARY KEY (col1, col2)`).
+- **Modern Features**: Fixed parsing of `ICEBERG`, `HYBRID`, and `EVENT` tables (case-insensitive detection).
+- **Governance**: Added basic support for `GRANT` and `REVOKE` statements (parsed as Custom Objects).
+
 ## [1.0.13] - 2025-12-01
 ### Fixed
 - **Case Sensitivity**: Fixed regression where quoted identifiers (e.g., `"Col"`) were incorrectly lowercased.
