@@ -172,6 +172,16 @@ class SnowflakeParser(GenericSQLParser):
                          pass 
                     break
             
+            # DATABASE ROLE (CREATE DATABASE ROLE name)
+            if val == 'DATABASE':
+                idx, next_token = self._get_next_token(tokens, i + 1)
+                if next_token and next_token.value.upper() == 'ROLE':
+                    obj_type = 'DATABASE ROLE'
+                    idx2, name_token = self._get_next_token(tokens, idx + 1)
+                    if name_token:
+                        obj_name = self._clean_name(name_token.value)
+                    break
+            
             # MASKING POLICY / ROW ACCESS POLICY
             if val == 'MASKING' or val == 'MASKING POLICY':
                 obj_type = 'MASKING POLICY'
