@@ -11,8 +11,10 @@ class Column:
     comment: Optional[str] = None # Added comment field
     collation: Optional[str] = None
     masking_policy: Optional[str] = None # Added for Snowflake Masking Policy
-    # DB2/Oracle Specifics
+    # DB2/Oracle/Snowflake Specifics
     is_identity: bool = False
+    identity_start: Optional[int] = None
+    identity_step: Optional[int] = None
     
     def __repr__(self):
         return f"Column(name='{self.name}', type='{self.data_type}')"
@@ -24,10 +26,12 @@ class Column:
             "is_nullable": self.is_nullable,
             "default_value": str(self.default_value) if self.default_value else None,
             "is_primary_key": self.is_primary_key,
-            "comment": self.comment, # Added comment to to_dict
+            "comment": self.comment,
             "collation": self.collation,
             "masking_policy": self.masking_policy,
-            "is_identity": self.is_identity
+            "is_identity": self.is_identity,
+            "identity_start": self.identity_start,
+            "identity_step": self.identity_step
         }
 
 @dataclass

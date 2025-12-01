@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Any
 from schemaforge.models import Schema, Table, Column, Index, ForeignKey, CheckConstraint, CustomObject
 
 @dataclass
@@ -15,7 +15,10 @@ class TableDiff:
     dropped_fks: List[ForeignKey] = field(default_factory=list)
     added_checks: List[CheckConstraint] = field(default_factory=list)
     dropped_checks: List[CheckConstraint] = field(default_factory=list)
+    added_checks: List[CheckConstraint] = field(default_factory=list)
+    dropped_checks: List[CheckConstraint] = field(default_factory=list)
     property_changes: List[str] = field(default_factory=list)
+    new_table_obj: Optional[Any] = None # Holds the full new Table object for context
     
     def to_dict(self):
         return {
@@ -104,7 +107,7 @@ class Comparator:
         return plan
 
     def _compare_tables(self, old_table: Table, new_table: Table) -> Optional[TableDiff]:
-        diff = TableDiff(table_name=new_table.name)
+        diff = TableDiff(table_name=new_table.name, new_table_obj=new_table)
         has_changes = False
         
         old_cols = {c.name: c for c in old_table.columns}
@@ -271,5 +274,9 @@ class Comparator:
             changes.append(f"Masking Policy: {old_col.masking_policy} -> {new_col.masking_policy}")
         if old_col.is_identity != new_col.is_identity:
             changes.append(f"Identity: {old_col.is_identity} -> {new_col.is_identity}")
+        if old_col.identity_start != new_col.identity_start:
+            changes.append(f"Identity Start: {old_col.identity_start} -> {new_col.identity_start}")
+        if old_col.identity_step != new_col.identity_step:
+            changes.append(f"Identity Step: {old_col.identity_step} -> {new_col.identity_step}")
             
         return changes if changes else None

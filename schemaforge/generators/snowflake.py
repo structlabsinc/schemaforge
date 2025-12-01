@@ -62,7 +62,40 @@ class SnowflakeGenerator(GenericGenerator):
             # The generic Diff object doesn't track property changes yet.
             # This is a limitation. For "God Mode", we might just recreate the table if properties change?
             # Or we can add logic here if we had access to the full table objects.
-            pass
+            
+            # Handle Primary Key Changes
+            # We need to check if the set of PK columns changed
+            # Since we don't have easy access to old/new table objects here (only diff), 
+            # we rely on modified_columns or property_changes if we had them.
+            # But wait, diff.property_changes IS available!
+            
+            pk_changed = False
+            for prop in diff.property_changes:
+                if "Primary Key Name" in prop:
+                    pk_changed = True
+            
+            # Also check if any column's PK status changed
+            for old, new in diff.modified_columns:
+                if old.is_primary_key != new.is_primary_key:
+                    pk_changed = True
+            
+            if pk_changed:
+                # Drop existing PK (if any) - we assume there was one if we are changing it, or we just try to drop
+                # In Snowflake, "DROP PRIMARY KEY" works even if we are adding one? No.
+                # If we are adding a PK where none existed, DROP might fail.
+                # But if we are modifying, we likely need to drop old one.
+                # Safe approach: Try to drop if we suspect there was one, then add new one.
+                # For now, we will just generate the ADD/DROP based on current state.
+                
+                sql.append(f"ALTER TABLE {diff.table_name} DROP PRIMARY KEY;")
+                
+                if diff.new_table_obj:
+                    pk_cols = [c.name for c in diff.new_table_obj.columns if c.is_primary_key]
+                    if pk_cols:
+                        pk_def = f"PRIMARY KEY ({', '.join(pk_cols)})"
+                        if diff.new_table_obj.primary_key_name:
+                            pk_def = f"CONSTRAINT {diff.new_table_obj.primary_key_name} {pk_def}"
+                        sql.append(f"ALTER TABLE {diff.table_name} ADD {pk_def};")
 
         return "\n".join(sql)
 
@@ -77,7 +110,10 @@ class SnowflakeGenerator(GenericGenerator):
         # Primary Keys
         pk_cols = [c.name for c in table.columns if c.is_primary_key]
         if pk_cols:
-            cols.append(f"  PRIMARY KEY ({', '.join(pk_cols)})")
+            pk_def = f"PRIMARY KEY ({', '.join(pk_cols)})"
+            if table.primary_key_name:
+                pk_def = f"CONSTRAINT {table.primary_key_name} {pk_def}"
+            cols.append(f"  {pk_def}")
             
         stmt += ",\n".join(cols)
         stmt += "\n)"
@@ -99,6 +135,10 @@ class SnowflakeGenerator(GenericGenerator):
         base = f"{col.name} {col.data_type}"
         if not col.is_nullable:
             base += " NOT NULL"
+        if col.is_identity:
+            start = col.identity_start if col.identity_start is not None else 1
+            step = col.identity_step if col.identity_step is not None else 1
+            base += f" IDENTITY({start}, {step})"
         if col.default_value:
             base += f" DEFAULT {col.default_value}"
         return base

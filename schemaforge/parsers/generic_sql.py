@@ -570,9 +570,15 @@ class GenericSQLParser(BaseParser):
                 if val_upper.startswith('IDENTITY') or val_upper.startswith('AUTOINCREMENT'):
                     column.is_identity = True
                     # Consume optional (start, inc)
+                    # Consume optional (start, inc)
                     if i + 1 < len(filtered_tokens) and isinstance(filtered_tokens[i+1], sqlparse.sql.Parenthesis):
-                        # We could parse start/inc here but for now just marking as identity is enough
-                        pass
+                        # Parse start/inc
+                        content = filtered_tokens[i+1].value.strip('()')
+                        parts = [p.strip() for p in content.split(',')]
+                        if len(parts) >= 1 and parts[0].isdigit():
+                            column.identity_start = int(parts[0])
+                        if len(parts) >= 2 and parts[1].isdigit():
+                            column.identity_step = int(parts[1])
 
             table.columns.append(column)
 
