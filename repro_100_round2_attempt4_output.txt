@@ -1,0 +1,50 @@
+......E...F
+======================================================================
+ERROR: test_governance_unset_policy (__main__.Test100Scenarios.test_governance_unset_policy)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/shivam/Antigravity/DaC/tests/repro_100_scenarios.py", line 97, in test_governance_unset_policy
+    schema = self.parser.parse(sql)
+  File "/home/shivam/Antigravity/DaC/schemaforge/parsers/snowflake.py", line 37, in parse
+    self._process_alter(statement)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/home/shivam/Antigravity/DaC/schemaforge/parsers/snowflake.py", line 426, in _process_alter
+    if 'MASKING POLICY' in stmt_str:
+                           ^^^^^^^^
+NameError: name 'stmt_str' is not defined
+
+======================================================================
+FAIL: test_modern_features_search_optimization (__main__.Test100Scenarios.test_modern_features_search_optimization)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/shivam/Antigravity/DaC/tests/repro_100_scenarios.py", line 162, in test_modern_features_search_optimization
+    self.assertTrue(found, "Search Optimization statement not detected")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : Search Optimization statement not detected
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.033s
+
+FAILED (failures=1, errors=1)
+
+--- Test: Composite PK ---
+
+--- Test: Named Constraint ---
+
+--- Test: Dynamic Table Regression ---
+
+--- Test: External Table ---
+
+--- Test: Column Masking Policy ---
+
+--- Test: Database Role ---
+
+--- Test: Unset Policy ---
+
+--- Test: Event Table ---
+
+--- Test: Hybrid Table ---
+
+--- Test: Iceberg Table ---
+
+--- Test: Search Optimization ---

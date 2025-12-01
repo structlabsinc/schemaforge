@@ -221,9 +221,36 @@ class GenericSQLParser(BaseParser):
                  self._extract_pk_cols(content_token, table)
                  return
                  
-             # TODO: Handle UNIQUE, FOREIGN KEY, CHECK similarly if needed
-             # For now, just PK was reported as broken for composite keys
+             if is_pk and content_token and isinstance(content_token, sqlparse.sql.Parenthesis):
+                 self._extract_pk_cols(content_token, table)
+                 return
+                 
+             # Handle UNIQUE (cols)
+             if first_word == 'UNIQUE':
+                 # UNIQUE (cols)
+                 if len(tokens) > 1 and isinstance(tokens[1], sqlparse.sql.Parenthesis):
+                     # Generate a name if not provided (inline unique usually doesn't have name unless CONSTRAINT used)
+                     # But here we are in _process_definition without CONSTRAINT
+                     self._extract_unique_constraint(tokens[1], table, f"uk_{table.name}_{len(table.indexes)}")
+                     return
+
+             # Handle FOREIGN KEY (cols) REFERENCES ref_table (ref_cols)
+             if first_word == 'FOREIGN' and len(tokens) > 1 and tokens[1].value.upper() == 'KEY':
+                 # FOREIGN KEY (cols) REFERENCES ...
+                 if len(tokens) > 2 and isinstance(tokens[2], sqlparse.sql.Parenthesis):
+                     # We need to pass all tokens to _extract_foreign_key or just the relevant ones?
+                     # _extract_foreign_key expects the full token stream starting from FOREIGN KEY usually?
+                     # No, it iterates tokens.
+                     # Let's pass the whole stream.
+                     self._extract_foreign_key(tokens, table, f"fk_{table.name}_{len(table.foreign_keys)}")
+                     return
              
+             # Handle CHECK (expr)
+             if first_word == 'CHECK':
+                 if len(tokens) > 1 and isinstance(tokens[1], sqlparse.sql.Parenthesis):
+                     self._extract_check_constraint(tokens[1], table, f"ck_{table.name}_{len(table.check_constraints)}")
+                     return
+
         else:
             self._process_column(tokens, table)
 
@@ -253,13 +280,13 @@ class GenericSQLParser(BaseParser):
                 # CONSTRAINT name PRIMARY KEY (cols)
                 # tokens: CONSTRAINT, name, PRIMARY, KEY, (cols)
                 if len(tokens) > type_idx + 2 and isinstance(tokens[type_idx+2], sqlparse.sql.Parenthesis):
-                    self._extract_pk_cols(tokens[type_idx+2], table)
+                    self._extract_pk_cols(tokens[type_idx+2], table, constraint_name)
             # Case 2: PRIMARY KEY as single token
             elif constraint_type == 'PRIMARY KEY':
                 # CONSTRAINT name PRIMARY KEY (cols)
                 # tokens: CONSTRAINT, name, PRIMARY KEY, (cols)
                 if len(tokens) > type_idx + 1 and isinstance(tokens[type_idx+1], sqlparse.sql.Parenthesis):
-                    self._extract_pk_cols(tokens[type_idx+1], table)
+                    self._extract_pk_cols(tokens[type_idx+1], table, constraint_name)
         
         elif constraint_type == 'UNIQUE':
             # CONSTRAINT name UNIQUE (cols)
@@ -271,7 +298,7 @@ class GenericSQLParser(BaseParser):
             if len(tokens) > type_idx + 1 and isinstance(tokens[type_idx+1], sqlparse.sql.Parenthesis):
                 self._extract_check_constraint(tokens[type_idx+1], table, constraint_name)
 
-    def _extract_pk_cols(self, parenthesis, table: Table):
+    def _extract_pk_cols(self, parenthesis, table: Table, name: Optional[str] = None):
         content = parenthesis.tokens[1:-1]
         for t in content:
             col_names = []
@@ -290,6 +317,9 @@ class GenericSQLParser(BaseParser):
                         if col.name == clean_col_name:
                             col.is_primary_key = True
                             break
+        
+        if name:
+            table.primary_key_name = self._clean_name(name)
 
     def _extract_foreign_key(self, tokens, table: Table, name: str):
         # Find columns
@@ -323,8 +353,15 @@ class GenericSQLParser(BaseParser):
             elif token.value.upper() == 'REFERENCES':
                 current_phase = 'ref_table'
             elif current_phase == 'ref_table':
+                # Handle schema.table or just table
                 if isinstance(token, Identifier):
+                    # Identifier might contain schema.table
+                    # sqlparse handles this well usually
                     ref_table = token.get_real_name()
+                    # Check if it has a parent (schema)
+                    if token.get_parent_name():
+                        ref_table = f"{token.get_parent_name()}.{ref_table}"
+                    
                     current_phase = 'ref_cols'
                 elif isinstance(token, sqlparse.sql.Function):
                     ref_table = token.get_real_name()
@@ -335,8 +372,14 @@ class GenericSQLParser(BaseParser):
                 elif token.ttype is sqlparse.tokens.Name:
                     ref_table = token.value
                     current_phase = 'ref_cols'
+                # Handle simple dot notation if sqlparse didn't group it (rare but possible)
+                # e.g. schema . table
+                # This logic is complex to do in a simple loop without lookahead
+                # But Identifier usually catches it.
 
-        if cols and ref_table and ref_cols:
+        if cols and ref_table:
+            # If ref_cols is empty, it implies PK of ref_table, but we can't know that here easily without looking up ref_table
+            # For now, we store what we found.
             fk = ForeignKey(
                 name=self._clean_name(name),
                 column_names=[self._clean_name(c) for c in cols],
@@ -418,25 +461,27 @@ class GenericSQLParser(BaseParser):
             if 'PRIMARY KEY' in full_def:
                 column.is_primary_key = True
                 
-            # Parse DEFAULT value and COMMENT
+            # Parse DEFAULT, COMMENT, COLLATE, UNIQUE, REFERENCES
             for i, token in enumerate(filtered_tokens):
+                val_upper = token.value.upper()
+                
                 # Check for DEFAULT
-                if token.value.upper() == 'DEFAULT':
+                if val_upper == 'DEFAULT':
                     # Collect tokens until end or next constraint keyword
                     default_val_tokens = []
                     next_idx = i + 1
                     while next_idx < len(filtered_tokens):
                         next_token = filtered_tokens[next_idx]
-                        val_upper = next_token.value.upper()
+                        next_val_upper = next_token.value.upper()
                         # Keywords that might terminate a DEFAULT clause
-                        if val_upper in ('NOT', 'NULL', 'PRIMARY', 'KEY', 'UNIQUE', 'CHECK', 'REFERENCES', 'CONSTRAINT', 'GENERATED', 'AUTO_INCREMENT', 'COMMENT'):
+                        if next_val_upper in ('NOT', 'NULL', 'PRIMARY', 'KEY', 'UNIQUE', 'CHECK', 'REFERENCES', 'CONSTRAINT', 'GENERATED', 'AUTO_INCREMENT', 'COMMENT', 'COLLATE', 'WITH', 'MASKING'):
                             # Special handling for 'NOT NULL' and 'PRIMARY KEY' as they are multi-word
-                            if val_upper == 'NOT' and next_idx + 1 < len(filtered_tokens) and filtered_tokens[next_idx+1].value.upper() == 'NULL':
+                            if next_val_upper == 'NOT' and next_idx + 1 < len(filtered_tokens) and filtered_tokens[next_idx+1].value.upper() == 'NULL':
                                 break
-                            if val_upper == 'PRIMARY' and next_idx + 1 < len(filtered_tokens) and filtered_tokens[next_idx+1].value.upper() == 'KEY':
+                            if next_val_upper == 'PRIMARY' and next_idx + 1 < len(filtered_tokens) and filtered_tokens[next_idx+1].value.upper() == 'KEY':
                                 break
                             # For other single keywords, break
-                            if val_upper in ('UNIQUE', 'CHECK', 'REFERENCES', 'CONSTRAINT', 'GENERATED', 'AUTO_INCREMENT', 'COMMENT'):
+                            if next_val_upper in ('UNIQUE', 'CHECK', 'REFERENCES', 'CONSTRAINT', 'GENERATED', 'AUTO_INCREMENT', 'COMMENT', 'COLLATE', 'WITH', 'MASKING'):
                                 break
                         
                         default_val_tokens.append(next_token.value)
@@ -445,15 +490,89 @@ class GenericSQLParser(BaseParser):
                     if default_val_tokens:
                         column.default_value = " ".join(default_val_tokens)
                 
+                # Check for UNIQUE
+                if val_upper == 'UNIQUE':
+                    # Add unique index for this column
+                    idx_name = f"uk_{table.name}_{column.name}"
+                    index = Index(name=self._clean_name(idx_name), columns=[column.name], is_unique=True)
+                    table.indexes.append(index)
+
+                # Check for REFERENCES (Foreign Key)
+                if val_upper == 'REFERENCES':
+                    # REFERENCES ref_table (ref_col)
+                    if i + 1 < len(filtered_tokens):
+                        ref_table_token = filtered_tokens[i+1]
+                        ref_table_name = ref_table_token.value
+                        ref_col_name = None
+                        
+                        if isinstance(ref_table_token, Identifier):
+                            # Check if Identifier contains parenthesis (e.g. schema.table(col))
+                            token_val = ref_table_token.value
+                            if '(' in token_val and token_val.endswith(')'):
+                                # Extract table and col
+                                parts = token_val.split('(')
+                                ref_table_name = parts[0]
+                                ref_col_name = parts[1][:-1] # Remove trailing )
+                                
+                                # Clean table name (handle schema)
+                                # We can rely on sqlparse for the base name but we need to handle the schema part manually if we split the string
+                                # Actually, let's just use the string splitting as it's more reliable for this specific case where sqlparse grouped it all
+                                pass
+                            else:
+                                ref_table_name = ref_table_token.get_real_name()
+                                if ref_table_token.get_parent_name():
+                                    ref_table_name = f"{ref_table_token.get_parent_name()}.{ref_table_name}"
+                        
+                        # Check for ref_col in separate parenthesis if not found in Identifier
+                        if not ref_col_name and i + 2 < len(filtered_tokens) and isinstance(filtered_tokens[i+2], sqlparse.sql.Parenthesis):
+                            # Extract column
+                            content = filtered_tokens[i+2].value[1:-1]
+                            ref_col_name = self._clean_name(content)
+                        
+                        if ref_table_name:
+                             fk_name = f"fk_{table.name}_{column.name}"
+                             ref_cols = [self._clean_name(ref_col_name)] if ref_col_name else [] 
+                             
+                             fk = ForeignKey(
+                                name=self._clean_name(fk_name),
+                                column_names=[column.name],
+                                ref_table=self._clean_name(ref_table_name),
+                                ref_column_names=ref_cols
+                             )
+                             table.foreign_keys.append(fk)
+
                 # Check for COMMENT
-                if token.value.upper() == 'COMMENT':
+                if val_upper == 'COMMENT':
                     if i + 1 < len(filtered_tokens):
                         column.comment = filtered_tokens[i+1].value.strip("'")
                         
                 # Check for COLLATE
-                if token.value.upper() == 'COLLATE':
+                if val_upper == 'COLLATE':
                     if i + 1 < len(filtered_tokens):
                         column.collation = filtered_tokens[i+1].value.strip("'")
+
+                # Check for MASKING POLICY (Snowflake)
+                # Syntax: [WITH] MASKING POLICY policy_name
+                if val_upper == 'MASKING':
+                    # Check if next is POLICY
+                    if i + 1 < len(filtered_tokens) and filtered_tokens[i+1].value.upper() == 'POLICY':
+                        if i + 2 < len(filtered_tokens):
+                            column.masking_policy = filtered_tokens[i+2].value
+                
+                # Check for WITH MASKING POLICY
+                if val_upper == 'WITH':
+                    if i + 1 < len(filtered_tokens) and filtered_tokens[i+1].value.upper() == 'MASKING':
+                         if i + 2 < len(filtered_tokens) and filtered_tokens[i+2].value.upper() == 'POLICY':
+                             if i + 3 < len(filtered_tokens):
+                                 column.masking_policy = filtered_tokens[i+3].value
+
+                # Check for IDENTITY / AUTOINCREMENT
+                if val_upper.startswith('IDENTITY') or val_upper.startswith('AUTOINCREMENT'):
+                    column.is_identity = True
+                    # Consume optional (start, inc)
+                    if i + 1 < len(filtered_tokens) and isinstance(filtered_tokens[i+1], sqlparse.sql.Parenthesis):
+                        # We could parse start/inc here but for now just marking as identity is enough
+                        pass
 
             table.columns.append(column)
 

@@ -117,5 +117,58 @@ class Test100Scenarios(unittest.TestCase):
         schema = self.parser.parse(sql)
         self.assertTrue(any(t.name == 'et_test' for t in schema.tables), "Event table not found")
 
+    def test_constraints_named(self):
+        print("\n--- Test: Named Constraint ---")
+        sql = "CREATE TABLE T (ID INT, CONSTRAINT PK_TEST PRIMARY KEY (ID));"
+        schema = self.parser.parse(sql)
+        t = schema.tables[0]
+        col = t.get_column('id')
+        self.assertTrue(col.is_primary_key, "Named PK not detected")
+
+    def test_governance_column_policy(self):
+        print("\n--- Test: Column Masking Policy ---")
+        sql = "CREATE TABLE T (ID INT, VAL STRING MASKING POLICY mask_val);"
+        schema = self.parser.parse(sql)
+        t = schema.tables[0]
+        # Check if policy is captured in table.policies or column.comment or similar
+        # Ideally, we want to know that 'mask_val' is applied.
+        # Current parser puts it in table.policies if parsed via _process_create -> _extract_create_table
+        # But _extract_create_table might not handle column-level policies yet.
+        found = any('mask_val' in p for p in t.policies)
+        self.assertTrue(found, "Column Masking Policy not detected")
+
+    def test_governance_db_role(self):
+        print("\n--- Test: Database Role ---")
+        sql = "CREATE DATABASE ROLE DR_TEST;"
+        schema = self.parser.parse(sql)
+        found = any(o.obj_type == 'DATABASE ROLE' and o.name == 'CREATE DATABASE ROLE DR_TEST' for o in schema.custom_objects)
+        # Note: Current implementation might capture the whole string as name if it falls into generic catch-all
+        # Or it might not capture it at all if not explicitly handled.
+        self.assertTrue(found, "Database Role not detected") 
+
+    def test_modern_features_search_optimization(self):
+        print("\n--- Test: Search Optimization ---")
+        sql = "ALTER TABLE T ADD SEARCH OPTIMIZATION ON EQUALITY(ID);"
+        schema = self.parser.parse(sql)
+        # Should be captured as a CustomObject or property change?
+        # Since it's an ALTER, it might be processed by _process_alter
+        # If _process_alter doesn't handle it, it might be ignored.
+        # Let's check if we have a custom object for it or if it modified the table.
+        # Actually, ALTER usually modifies an existing table.
+        # But if we parse just this SQL, there is no table to modify in the context unless we mock it.
+        # However, the parser returns a Schema object.
+        # If it's an ALTER on an unknown table, it might be skipped or added as CustomObject.
+        found = any('SEARCH OPTIMIZATION' in o.name for o in schema.custom_objects)
+        self.assertTrue(found, "Search Optimization statement not detected")
+
+    def test_external_table(self):
+        print("\n--- Test: External Table ---")
+        sql = "CREATE EXTERNAL TABLE EXT_T (ID INT) LOCATION=@stage/path FILE_FORMAT=(TYPE=PARQUET);"
+        schema = self.parser.parse(sql)
+        t = schema.tables[0]
+        self.assertEqual(t.name, 'ext_t')
+        self.assertEqual(t.table_type, 'External Table') # Expect specific type
+
+
 if __name__ == '__main__':
     unittest.main()

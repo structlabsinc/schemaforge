@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/home/shivam/Antigravity/DaC/tests/repro_100_scenarios.py", line 2, in <module>
+    from schemaforge.parsers.snowflake import SnowflakeParser
+  File "/home/shivam/Antigravity/DaC/schemaforge/parsers/snowflake.py", line 490
+    ```
+    ^
+SyntaxError: invalid syntax

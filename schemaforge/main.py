@@ -195,6 +195,18 @@ def _handle_output(args, migration_plan):
                 output_content += f"{GREEN}    + Add Check Constraint: {check.name} ({check.expression}){RESET}\n"
             for check in diff.dropped_checks:
                 output_content += f"{RED}    - Drop Check Constraint: {check.name}{RESET}\n"
+            for idx in diff.added_indexes:
+                cols = ", ".join(idx.columns)
+                unique_str = "UNIQUE " if idx.is_unique else ""
+                output_content += f"{GREEN}    + Add {unique_str}Index: {idx.name} ({cols}){RESET}\n"
+            for idx in diff.dropped_indexes:
+                output_content += f"{RED}    - Drop Index: {idx.name}{RESET}\n"
+            for fk in diff.added_fks:
+                cols = ", ".join(fk.column_names)
+                ref_cols = ", ".join(fk.ref_column_names)
+                output_content += f"{GREEN}    + Add Foreign Key: {fk.name} ({cols}) REFERENCES {fk.ref_table}({ref_cols}){RESET}\n"
+            for fk in diff.dropped_fks:
+                output_content += f"{RED}    - Drop Foreign Key: {fk.name}{RESET}\n"
             for old_col, new_col in diff.modified_columns:
                 changes = []
                 if old_col.data_type != new_col.data_type:
@@ -203,19 +215,31 @@ def _handle_output(args, migration_plan):
                     changes.append(f"Nullable: {old_col.is_nullable} -> {new_col.is_nullable}")
                 if old_col.default_value != new_col.default_value:
                     changes.append(f"Default: {old_col.default_value} -> {new_col.default_value}")
-                if old_col.is_primary_key != new_col.is_primary_key:
-                    changes.append(f"PK: {old_col.is_primary_key} -> {new_col.is_primary_key}")
                 if old_col.comment != new_col.comment:
                     changes.append(f"Comment: {old_col.comment} -> {new_col.comment}")
+                if old_col.is_primary_key != new_col.is_primary_key:
+                    changes.append(f"Primary Key (PK): {old_col.is_primary_key} -> {new_col.is_primary_key}")
                 if old_col.collation != new_col.collation:
                     changes.append(f"Collation: {old_col.collation} -> {new_col.collation}")
+                if old_col.masking_policy != new_col.masking_policy:
+                    # Format to match test expectation: "Policy: policy_name"
+                    # If new has policy, say "Policy: name"
+                    # If dropped, say "Unset Policy" (but that's handled in ALTER TABLE usually?)
+                    # Scenario 41 expects "Policy: email_mask"
+                    if new_col.masking_policy:
+                        changes.append(f"Policy: {new_col.masking_policy}")
+                    else:
+                        changes.append(f"Unset Policy")
+                if old_col.is_identity != new_col.is_identity:
+                    changes.append(f"Identity: {old_col.is_identity} -> {new_col.is_identity}")
                 
-                change_str = ", ".join(changes)
-                output_content += f"{YELLOW}    ~ Modify Column: {new_col.name} ({change_str}){RESET}\n"
+                if changes:
+                    output_content += f"{YELLOW}    ~ Modify Column: {new_col.name}{RESET}\n"
+                    for change in changes:
+                        output_content += f"{YELLOW}      ~ {change}{RESET}\n"
         
         # Custom Objects - with keyword extraction for better output
         for obj in migration_plan.new_custom_objects:
-            # Extract key information based on object type
             output_line = f"{GREEN}  + "
             
             if obj.obj_type == 'ALTER DATABASE' or obj.obj_type == 'ALTER SCHEMA':

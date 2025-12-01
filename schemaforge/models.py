@@ -10,6 +10,7 @@ class Column:
     is_primary_key: bool = False
     comment: Optional[str] = None # Added comment field
     collation: Optional[str] = None
+    masking_policy: Optional[str] = None # Added for Snowflake Masking Policy
     # DB2/Oracle Specifics
     is_identity: bool = False
     
@@ -25,6 +26,7 @@ class Column:
             "is_primary_key": self.is_primary_key,
             "comment": self.comment, # Added comment to to_dict
             "collation": self.collation,
+            "masking_policy": self.masking_policy,
             "is_identity": self.is_identity
         }
 
@@ -102,6 +104,7 @@ class Table:
     comment: Optional[str] = None
     policies: List[str] = field(default_factory=list)
     tags: dict = field(default_factory=dict)
+    primary_key_name: Optional[str] = None # Added for Named Constraints
     
     # DB2/Oracle Specifics
     tablespace: Optional[str] = None

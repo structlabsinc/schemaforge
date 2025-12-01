@@ -189,6 +189,10 @@ class Comparator:
             diff.property_changes.append(f"Transient: {old_table.is_transient} -> {new_table.is_transient}")
             has_changes = True
             
+        if old_table.primary_key_name != new_table.primary_key_name:
+            diff.property_changes.append(f"Primary Key Name (PK): {old_table.primary_key_name} -> {new_table.primary_key_name}")
+            has_changes = True
+            
         # Policies
         old_policies = set(old_table.policies)
         new_policies = set(new_table.policies)
@@ -263,5 +267,9 @@ class Comparator:
             changes.append(f"Comment: {old_col.comment} -> {new_col.comment}")
         if old_col.collation != new_col.collation:
             changes.append(f"Collation: {old_col.collation} -> {new_col.collation}")
+        if old_col.masking_policy != new_col.masking_policy:
+            changes.append(f"Masking Policy: {old_col.masking_policy} -> {new_col.masking_policy}")
+        if old_col.is_identity != new_col.is_identity:
+            changes.append(f"Identity: {old_col.is_identity} -> {new_col.is_identity}")
             
         return changes if changes else None

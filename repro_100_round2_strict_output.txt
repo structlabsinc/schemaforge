@@ -1,0 +1,66 @@
+...FFF....F
+======================================================================
+FAIL: test_external_table (__main__.Test100Scenarios.test_external_table)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/shivam/Antigravity/DaC/tests/repro_100_scenarios.py", line 170, in test_external_table
+    self.assertEqual(t.table_type, 'External Table') # Expect specific type
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'Table' != 'External Table'
+- Table
++ External Table
+
+
+======================================================================
+FAIL: test_governance_column_policy (__main__.Test100Scenarios.test_governance_column_policy)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/shivam/Antigravity/DaC/tests/repro_100_scenarios.py", line 138, in test_governance_column_policy
+    self.assertTrue(found, "Column Masking Policy not detected")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : Column Masking Policy not detected
+
+======================================================================
+FAIL: test_governance_db_role (__main__.Test100Scenarios.test_governance_db_role)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/shivam/Antigravity/DaC/tests/repro_100_scenarios.py", line 147, in test_governance_db_role
+    self.assertTrue(found, "Database Role not detected")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : Database Role not detected
+
+======================================================================
+FAIL: test_modern_features_search_optimization (__main__.Test100Scenarios.test_modern_features_search_optimization)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/shivam/Antigravity/DaC/tests/repro_100_scenarios.py", line 162, in test_modern_features_search_optimization
+    self.assertTrue(found, "Search Optimization statement not detected")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : Search Optimization statement not detected
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.026s
+
+FAILED (failures=4)
+
+--- Test: Composite PK ---
+
+--- Test: Named Constraint ---
+
+--- Test: Dynamic Table Regression ---
+
+--- Test: External Table ---
+
+--- Test: Column Masking Policy ---
+
+--- Test: Database Role ---
+
+--- Test: Unset Policy ---
+
+--- Test: Event Table ---
+
+--- Test: Hybrid Table ---
+
+--- Test: Iceberg Table ---
+
+--- Test: Search Optimization ---
