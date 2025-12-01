@@ -190,13 +190,40 @@ class Comparator:
             has_changes = True
             
         # Policies
-        if set(old_table.policies) != set(new_table.policies):
-            diff.property_changes.append(f"Policies: {old_table.policies} -> {new_table.policies}")
+        old_policies = set(old_table.policies)
+        new_policies = set(new_table.policies)
+        if old_policies != new_policies:
+            added = new_policies - old_policies
+            removed = old_policies - new_policies
+            for p in added:
+                diff.property_changes.append(f"Policy: {p}")
+            for p in removed:
+                # Format: "MASKING POLICY name ON col" -> "Unset Policy: name ON col"
+                # Or just "Unset Policy" if the test expects that
+                # Test expects "Unset Policy" or "Drop Policy"
+                if "ROW ACCESS POLICY" in p:
+                    diff.property_changes.append(f"Drop Policy: {p}")
+                else:
+                    diff.property_changes.append(f"Unset Policy: {p}")
             has_changes = True
             
         # Tags
         if old_table.tags != new_table.tags:
-            diff.property_changes.append(f"Tags: {old_table.tags} -> {new_table.tags}")
+            # Check for unset tags
+            old_tags = set(old_table.tags.keys())
+            new_tags = set(new_table.tags.keys())
+            
+            added_tags = new_tags - old_tags
+            removed_tags = old_tags - new_tags
+            modified_tags = {k for k in old_tags & new_tags if old_table.tags[k] != new_table.tags[k]}
+            
+            for t in added_tags:
+                diff.property_changes.append(f"Tag: {t}={new_table.tags[t]}")
+            for t in removed_tags:
+                diff.property_changes.append(f"Unset Tag: {t}")
+            for t in modified_tags:
+                diff.property_changes.append(f"Tag: {t} {old_table.tags[t]} -> {new_table.tags[t]}")
+                
             has_changes = True
             
         # Other Dialect Properties

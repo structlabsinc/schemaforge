@@ -173,12 +173,15 @@ def _handle_output(args, migration_plan):
         
         output_content = "Execution Plan:\n"
         for table in migration_plan.new_tables:
-            output_content += f"{GREEN}  + Create Table: {table.name}{RESET}\n"
+            # Use table_type if available, otherwise default to Table
+            t_type = getattr(table, 'table_type', 'Table')
+            output_content += f"{GREEN}  + Create {t_type}: {table.name}{RESET}\n"
             for col in table.columns:
                 output_content += f"{GREEN}    + Column: {col.name} ({col.data_type}){RESET}\n"
                 
         for table in migration_plan.dropped_tables:
-            output_content += f"{RED}  - Drop Table: {table.name}{RESET}\n"
+            t_type = getattr(table, 'table_type', 'Table')
+            output_content += f"{RED}  - Drop {t_type}: {table.name}{RESET}\n"
             
         for diff in migration_plan.modified_tables:
             output_content += f"{YELLOW}  ~ Modify Table: {diff.table_name}{RESET}\n"

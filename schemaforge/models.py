@@ -95,9 +95,9 @@ class Table:
     check_constraints: List[CheckConstraint] = field(default_factory=list)
     
     # Snowflake Specifics
+    table_type: str = "Table" # e.g. "Table", "Dynamic Table", "Iceberg Table", "View", "Materialized View"
     is_transient: bool = False
     cluster_by: List[str] = field(default_factory=list)
-    retention_days: Optional[int] = None
     retention_days: Optional[int] = None
     comment: Optional[str] = None
     policies: List[str] = field(default_factory=list)
@@ -127,9 +127,9 @@ class Table:
             "indexes": [i.to_dict() for i in self.indexes],
             "foreign_keys": [fk.to_dict() for fk in self.foreign_keys],
             "check_constraints": [c.to_dict() for c in self.check_constraints],
+            "table_type": self.table_type,
             "is_transient": self.is_transient,
             "cluster_by": self.cluster_by,
-            "retention_days": self.retention_days,
             "retention_days": self.retention_days,
             "comment": self.comment,
             "policies": self.policies,

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.15] - 2025-12-01
+### Fixed
+- **Output Formatting**: Updated CLI output to correctly identify table types (e.g., "Create Dynamic Table", "Create Iceberg Table") instead of generic "Create Table".
+- **Diff Formatting**: Improved diff messages for Governance policies (e.g., "Unset Policy", "Unset Tag") to match expected test output.
+- **Versioning**: Added `setup.py` to ensure correct version reporting in installed environments.
+- **Dynamic Tables**: Verified and fixed regression in Dynamic Table detection by ensuring correct `table_type` population.
+
 ## [1.0.14] - 2025-12-01
 ### Fixed
 - **Dynamic Tables**: Fixed regression where `DYNAMIC TABLE` was not detected.

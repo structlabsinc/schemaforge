@@ -103,11 +103,21 @@ class SnowflakeParser(GenericSQLParser):
                 # Check if next token is TABLE
                 idx, next_token = self._get_next_token(tokens, i + 1)
                 if next_token and next_token.value.upper() == 'TABLE':
-                    obj_type = 'TABLE' # Treat as table for now
+                    obj_type = 'TABLE' 
+                    # Store the specific type
+                    # We need to pass this to _process_snowflake_table or set it on the table object
+                    # But _process_snowflake_table creates the Table object.
+                    # We should pass it as an argument.
+                    specific_type = f"{val} TABLE".title() # e.g. "Iceberg Table"
                     
                     # Advance 'i' to the 'TABLE' token so the subsequent name extraction works correctly
                     i = idx
-                    break # Found object type and advanced index, break from loop
+                    
+                    # We need to store this specific type to pass to _process_snowflake_table
+                    # But the loop continues.
+                    # Let's change _process_snowflake_table signature.
+                    self._process_snowflake_table(statement, is_transient, table_type=specific_type)
+                    return # We handled it
             
             # Standard Objects (usually separate tokens)
             if val in ('TABLE', 'VIEW', 'SEQUENCE', 'PROCEDURE', 'STREAM', 'SCHEMA'):
@@ -235,7 +245,7 @@ class SnowflakeParser(GenericSQLParser):
             return
 
         if obj_type == 'TABLE':
-            self._process_snowflake_table(statement, is_transient)
+            self._process_snowflake_table(statement, is_transient, table_type="Table")
         else:
             # Custom Object
             if obj_name:
@@ -248,7 +258,7 @@ class SnowflakeParser(GenericSQLParser):
                     properties={'raw_sql': normalized_sql} 
                 ))
 
-    def _process_snowflake_table(self, statement, is_transient):
+    def _process_snowflake_table(self, statement, is_transient, table_type="Table"):
         # Use generic parser logic to get basic table structure
         # But we need to handle Snowflake specific syntax
         
@@ -275,7 +285,7 @@ class SnowflakeParser(GenericSQLParser):
         else:
             table_name = name_token.value
             
-        table = Table(name=self._clean_name(table_name), is_transient=is_transient)
+        table = Table(name=self._clean_name(table_name), is_transient=is_transient, table_type=table_type)
         
         # Find columns
         # If table name was a Function, columns are inside it
