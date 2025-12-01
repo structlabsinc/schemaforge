@@ -1,6 +1,0 @@
-sqlparse>=0.4.4
-sqlalchemy>=2.0.0
-# Optional drivers for live DB introspection
-psycopg2-binary
-pymysql
-snowflake-sqlalchemy

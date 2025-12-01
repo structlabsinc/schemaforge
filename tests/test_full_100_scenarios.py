@@ -10,10 +10,14 @@ import re
 import shutil
 
 SF_CMD = ["python3", "-m", "schemaforge.main"]
-GOD_SOURCE = "god_level_schema.sql"
-GOD_TARGET = "god_level_schema_Copy.sql"
-HEALTH_SOURCE = "health_insurance.sql"
-HEALTH_TARGET = "health_insurance_Copy.sql"
+# Paths relative to script execution or fixed
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FIXTURES_DIR = os.path.join(BASE_DIR, "fixtures")
+
+GOD_SOURCE = os.path.join(FIXTURES_DIR, "god_level_schema.sql")
+GOD_TARGET = "god_level_schema_Copy.sql" # Working copy in current dir
+HEALTH_SOURCE = os.path.join(FIXTURES_DIR, "health_insurance.sql")
+HEALTH_TARGET = "health_insurance_Copy.sql" # Working copy in current dir
 
 def reset_files():
     if os.path.exists(GOD_SOURCE):

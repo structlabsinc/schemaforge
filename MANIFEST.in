@@ -1,1 +1,2 @@
-include VERSION
+include schemaforge/VERSION
+recursive-include tests/fixtures *.sql

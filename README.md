@@ -37,9 +37,9 @@ Requires Python 3.9+.
 ```bash
 git clone https://github.com/structlabsinc/schemaforge.git
 cd schemaforge
-pip install -r requirements.txt
-# Run via python
-python3 schemaforge/main.py --help
+pip install .
+# Run via sf
+sf --help
 ```
 
 ## Usage Scenarios

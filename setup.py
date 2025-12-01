@@ -13,6 +13,11 @@ setup(
     install_requires=[
         'sqlparse',
     ],
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: Apache Software License",
+        "Operating System :: OS Independent",
+    ],
     entry_points={
         'console_scripts': [
             'sf=schemaforge.main:main',
