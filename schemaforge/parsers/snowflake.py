@@ -30,11 +30,19 @@ class SnowflakeParser(GenericSQLParser):
         parsed = sqlparse.parse(sql_content)
         
         for statement in parsed:
+            stmt_upper = str(statement).upper()
             
             if statement.get_type() in ('CREATE', 'CREATE OR REPLACE'):
                 self._process_create(statement)
             elif statement.get_type() == 'ALTER':
                 self._process_alter(statement)
+            elif 'COMMENT ON' in stmt_upper:
+                # Handle COMMENT ON DATABASE/TABLE/etc
+                self.schema.custom_objects.append(CustomObject(
+                    obj_type='COMMENT',
+                    name=str(statement).strip(),
+                    properties={'raw_sql': str(statement)}
+                ))
             elif statement.get_type() == 'UNKNOWN':
                 # sqlparse might not recognize some Snowflake commands as CREATE
                 # Check first token
@@ -394,13 +402,52 @@ class SnowflakeParser(GenericSQLParser):
         self.schema.tables.append(table)
 
     def _process_alter(self, statement):
-        # Handle ALTER TABLE for Policies and Tags
+        # Handle ALTER for TABLE, DATABASE, SCHEMA, TASK, ALERT
         import re
-        stmt_str = str(statement).upper()
+        stmt_upper = str(statement).upper()
         
+        # Handle ALTER DATABASE
+        if 'ALTER DATABASE' in stmt_upper or 'ALTER SCHEMA' in stmt_upper:
+            # These modify database/schema properties - store as custom object
+            obj_type = 'ALTER DATABASE' if 'DATABASE' in stmt_upper else 'ALTER SCHEMA'
+            self.schema.custom_objects.append(CustomObject(
+                obj_type=obj_type,
+                name=str(statement).strip(),
+                properties={'raw_sql': str(statement)}
+            ))
+            return
+        
+        # Handle ALTER TASK
+        if 'ALTER TASK' in stmt_upper:
+            self.schema.custom_objects.append(CustomObject(
+                obj_type='ALTER TASK',
+                name=str(statement).strip(),
+                properties={'raw_sql': str(statement)}
+            ))
+            return
+        
+        # Handle ALTER ALERT
+        if 'ALTER ALERT' in stmt_upper:
+            self.schema.custom_objects.append(CustomObject(
+                obj_type='ALTER ALERT',
+                name=str(statement).strip(),
+                properties={'raw_sql': str(statement)}
+            ))
+            return
+        
+        # Handle ALTER VIEW (for tags, etc)
+        if 'ALTER VIEW' in stmt_upper:
+            self.schema.custom_objects.append(CustomObject(
+                obj_type='ALTER VIEW',
+                name=str(statement).strip(),
+                properties={'raw_sql': str(statement)}
+            ))
+            return
+        
+        # Handle ALTER TABLE (existing logic continues below)
         # Extract Table Name
         # ALTER TABLE name ...
-        match_table = re.search(r'ALTER\s+TABLE\s+(\w+)', stmt_str, re.IGNORECASE)
+        match_table = re.search(r'ALTER\s+TABLE\s+(\w+)', stmt_upper, re.IGNORECASE)
         if not match_table:
             return
             
