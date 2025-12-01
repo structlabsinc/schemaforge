@@ -354,6 +354,33 @@ class GenericSQLParser(BaseParser):
             if 'PRIMARY KEY' in full_def:
                 column.is_primary_key = True
                 
+            # Parse DEFAULT value
+            # Iterate tokens to find DEFAULT
+            for i, token in enumerate(tokens):
+                if token.value.upper() == 'DEFAULT':
+                    # Collect tokens until end or next constraint keyword
+                    default_tokens = []
+                    for j in range(i + 1, len(tokens)):
+                        t = tokens[j]
+                        val_upper = t.value.upper()
+                        if val_upper in ('NOT', 'NULL', 'PRIMARY', 'KEY', 'UNIQUE', 'CHECK', 'REFERENCES', 'CONSTRAINT', 'GENERATED', 'AUTO_INCREMENT', 'COMMENT'):
+                            # Check for NOT NULL specifically
+                            if val_upper == 'NOT' and j + 1 < len(tokens) and tokens[j+1].value.upper() == 'NULL':
+                                break
+                            # Check for PRIMARY KEY
+                            if val_upper == 'PRIMARY' and j + 1 < len(tokens) and tokens[j+1].value.upper() == 'KEY':
+                                break
+                            # Other keywords usually start a new constraint/property
+                            if val_upper in ('PRIMARY', 'KEY', 'UNIQUE', 'CHECK', 'REFERENCES', 'CONSTRAINT', 'GENERATED', 'AUTO_INCREMENT', 'COMMENT'):
+                                break
+                        
+                        if not t.is_whitespace:
+                            default_tokens.append(t.value)
+                    
+                    if default_tokens:
+                        column.default_value = " ".join(default_tokens)
+                    break
+
             table.columns.append(column)
 
     def _clean_name(self, name: str) -> str:

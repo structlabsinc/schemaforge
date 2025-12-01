@@ -11,7 +11,9 @@ class TableDiff:
     added_indexes: List[Index] = field(default_factory=list)
     dropped_indexes: List[Index] = field(default_factory=list)
     added_fks: List[ForeignKey] = field(default_factory=list)
+    added_fks: List[ForeignKey] = field(default_factory=list)
     dropped_fks: List[ForeignKey] = field(default_factory=list)
+    property_changes: List[str] = field(default_factory=list)
     
     def to_dict(self):
         return {
@@ -25,7 +27,8 @@ class TableDiff:
             "added_indexes": [i.to_dict() for i in self.added_indexes],
             "dropped_indexes": [i.to_dict() for i in self.dropped_indexes],
             "added_fks": [fk.to_dict() for fk in self.added_fks],
-            "dropped_fks": [fk.to_dict() for fk in self.dropped_fks]
+            "dropped_fks": [fk.to_dict() for fk in self.dropped_fks],
+            "property_changes": self.property_changes
         }
 
 @dataclass
@@ -150,7 +153,45 @@ class Comparator:
             if name not in new_fks:
                 diff.dropped_fks.append(fk)
                 has_changes = True
-                    
+        
+        # Table Properties
+        if old_table.cluster_by != new_table.cluster_by:
+            diff.property_changes.append(f"Cluster Key: {old_table.cluster_by} -> {new_table.cluster_by}")
+            has_changes = True
+            
+        if old_table.retention_days != new_table.retention_days:
+            diff.property_changes.append(f"Retention: {old_table.retention_days} -> {new_table.retention_days}")
+            has_changes = True
+            
+        if old_table.comment != new_table.comment:
+            diff.property_changes.append(f"Comment: {old_table.comment} -> {new_table.comment}")
+            has_changes = True
+            
+        if old_table.is_transient != new_table.is_transient:
+            diff.property_changes.append(f"Transient: {old_table.is_transient} -> {new_table.is_transient}")
+            has_changes = True
+            
+        # Other Dialect Properties
+        if old_table.partition_by != new_table.partition_by:
+            diff.property_changes.append(f"Partition: {old_table.partition_by} -> {new_table.partition_by}")
+            has_changes = True
+            
+        if old_table.tablespace != new_table.tablespace:
+            diff.property_changes.append(f"Tablespace: {old_table.tablespace} -> {new_table.tablespace}")
+            has_changes = True
+            
+        if old_table.is_unlogged != new_table.is_unlogged:
+            diff.property_changes.append(f"Unlogged: {old_table.is_unlogged} -> {new_table.is_unlogged}")
+            has_changes = True
+            
+        if old_table.is_strict != new_table.is_strict:
+            diff.property_changes.append(f"Strict: {old_table.is_strict} -> {new_table.is_strict}")
+            has_changes = True
+            
+        if old_table.without_rowid != new_table.without_rowid:
+            diff.property_changes.append(f"Without RowID: {old_table.without_rowid} -> {new_table.without_rowid}")
+            has_changes = True
+
         return diff if has_changes else None
 
     def _is_column_modified(self, old_col: Column, new_col: Column) -> bool:

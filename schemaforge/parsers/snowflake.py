@@ -59,7 +59,7 @@ class SnowflakeParser(GenericSQLParser):
                 continue
                 
             # Standard Objects (usually separate tokens)
-            if val in ('TABLE', 'VIEW', 'SEQUENCE', 'PROCEDURE', 'STREAM'):
+            if val in ('TABLE', 'VIEW', 'SEQUENCE', 'PROCEDURE', 'STREAM', 'SCHEMA'):
                 obj_type = val
                 # Name is next token
                 if i + 1 < len(tokens):
@@ -70,7 +70,15 @@ class SnowflakeParser(GenericSQLParser):
                     else:
                         obj_name = name_token.value
                 break
-                
+            
+            # MATERIALIZED VIEW
+            if val == 'MATERIALIZED':
+                if i + 1 < len(tokens) and tokens[i+1].value.upper() == 'VIEW':
+                    obj_type = 'MATERIALIZED VIEW'
+                    if i + 2 < len(tokens):
+                        obj_name = tokens[i+2].value
+                    break
+
             # Objects that might be grouped (STAGE name, PIPE name, TASK name, STREAM name)
             for kw in ('STAGE', 'PIPE', 'TASK', 'STREAM'):
                 if check_keyword(val, kw):
@@ -180,13 +188,46 @@ class SnowflakeParser(GenericSQLParser):
         stmt_str = str(statement).upper()
         
         # Cluster By
+        # Cluster By
         if 'CLUSTER BY' in stmt_str:
-            import re
-            match = re.search(r'CLUSTER\s+BY\s*\((.*?)\)', stmt_str, re.IGNORECASE)
-            if match:
-                cols = [self._clean_name(c.strip()) for c in match.group(1).split(',')]
-                table.cluster_by = cols
+            # Use token iteration to find CLUSTER BY and the following Parenthesis
+            for i, token in enumerate(statement.tokens):
+                if token.value.upper() == 'CLUSTER':
+                    # Check next token is BY
+                    # Need to skip whitespace
+                    next_idx = i + 1
+                    while next_idx < len(statement.tokens) and statement.tokens[next_idx].is_whitespace:
+                        next_idx += 1
+                    
+                    if next_idx < len(statement.tokens) and statement.tokens[next_idx].value.upper() == 'BY':
+                        # Find next Parenthesis
+                        paren_idx = next_idx + 1
+                        while paren_idx < len(statement.tokens):
+                            if isinstance(statement.tokens[paren_idx], sqlparse.sql.Parenthesis):
+                                # Found it!
+                                cluster_content = statement.tokens[paren_idx].value[1:-1] # Strip outer ()
+                                
+                                # Use simple parenthesis-aware splitter
+                                cols = []
+                                current = []
+                                paren_level = 0
+                                for char in cluster_content:
+                                    if char == ',' and paren_level == 0:
+                                        cols.append("".join(current).strip())
+                                        current = []
+                                    else:
+                                        if char == '(': paren_level += 1
+                                        if char == ')': paren_level -= 1
+                                        current.append(char)
+                                if current:
+                                    cols.append("".join(current).strip())
+                                
+                                table.cluster_by = [self._clean_name(c) for c in cols]
+                                break
+                            paren_idx += 1
+                    break
                 
+
         # Retention
         if 'DATA_RETENTION_TIME_IN_DAYS' in stmt_str:
             import re

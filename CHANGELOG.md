@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] - 2025-12-01
+### Fixed
+- **Snowflake**: Fixed `CLUSTER BY` parsing to correctly handle functions and nested parenthesis.
+- **Snowflake**: Added support for `MATERIALIZED VIEW` and `CREATE SCHEMA` (parsed as Custom Objects).
+- **General**: Added support for parsing `DEFAULT` values in column definitions across all dialects.
+- **General**: Added detection and display of Table Property changes (Cluster Key, Retention, Comment, etc.) in the execution plan.
+
 ## [1.0.8] - 2025-11-30
 ### Fixed
 - Improved execution plan output for column modifications to explicitly show changed attributes (PK, Nullable, Default) instead of just data types.

@@ -182,6 +182,8 @@ def _handle_output(args, migration_plan):
             
         for diff in migration_plan.modified_tables:
             output_content += f"{YELLOW}  ~ Modify Table: {diff.table_name}{RESET}\n"
+            for prop_change in diff.property_changes:
+                output_content += f"{YELLOW}    ~ Property Change: {prop_change}{RESET}\n"
             for col in diff.added_columns:
                 output_content += f"{GREEN}    + Add Column: {col.name} ({col.data_type}){RESET}\n"
             for col in diff.dropped_columns:
