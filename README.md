@@ -74,7 +74,7 @@ sf compare --source v1.sql --target v2.sql --dialect snowflake --json-out plan.j
 See [GOVERNANCE.md](GOVERNANCE.md) for branch protection rules and release policies.
 
 ## License
-MIT
+Apache 2.0
 
 ## Live Database Comparison (`compare-livedb`)
 

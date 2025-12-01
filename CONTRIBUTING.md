@@ -21,11 +21,8 @@ Thank you for your interest in contributing to SchemaForge! We welcome contribut
 2.  **Make Changes**: Write clean, documented code.
 3.  **Run Tests**: Ensure all tests pass before submitting.
     ```bash
-    # Run unit tests
-    python3 -m unittest discover tests
-    
-    # Run specific blackbox tests (optional)
-    python3 tests/blackbox/massive_runner.py --dialect sqlite --count 10
+    # Run the comprehensive test suite
+    python3 tests/test_full_100_scenarios.py
     ```
 4.  **Commit**: Use clear, descriptive commit messages.
 
@@ -37,4 +34,4 @@ Thank you for your interest in contributing to SchemaForge! We welcome contribut
 4.  Wait for review from the maintainers.
 
 ## License
-By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE).
+By contributing, you agree that your contributions will be licensed under the [Apache 2.0 License](LICENSE).
