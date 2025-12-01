@@ -149,8 +149,8 @@ class SnowflakeParser(GenericSQLParser):
                         obj_name = self._clean_name(name_token.value)
                     break
 
-            # Objects that might be grouped (STAGE name, PIPE name, TASK name, STREAM name, TAG name, FUNCTION name)
-            for kw in ('STAGE', 'PIPE', 'TASK', 'STREAM', 'TAG', 'FUNCTION'):
+            # Objects that might be grouped (STAGE name, PIPE name, TASK name, STREAM name, TAG name, FUNCTION name, ALERT name)
+            for kw in ('STAGE', 'PIPE', 'TASK', 'STREAM', 'TAG', 'FUNCTION', 'ALERT'):
                 if check_keyword(val, kw):
                     obj_type = kw
                     if val == kw:
