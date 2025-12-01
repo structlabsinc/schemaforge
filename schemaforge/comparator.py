@@ -190,7 +190,7 @@ class Comparator:
             has_changes = True
             
         if old_table.primary_key_name != new_table.primary_key_name:
-            diff.property_changes.append(f"Primary Key Name (PK): {old_table.primary_key_name} -> {new_table.primary_key_name}")
+            diff.property_changes.append(f"Primary Key Name: {old_table.primary_key_name} -> {new_table.primary_key_name}")
             has_changes = True
             
         # Policies

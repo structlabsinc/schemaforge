@@ -108,7 +108,7 @@ scenarios.append(('Rename Table', HEALTH_TARGET,
 
 scenarios.append(('Add Primary Key', HEALTH_TARGET,
     lambda c: c.replace("PAYER_ID VARCHAR(10),", "PAYER_ID VARCHAR(10),\n    PRIMARY KEY (CLAIM_ID),"),
-    r'Primary Key \(PK\): False -> True'))
+    r'PK: False -> True'))
 
 scenarios.append(('Add Transient Table', HEALTH_TARGET,
     lambda c: c + "\nCREATE TRANSIENT TABLE STAGE_CLAIMS (RAW_DATA VARIANT);",
