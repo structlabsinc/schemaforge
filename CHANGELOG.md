@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-12-01
+### Fixed
+- **Build**: Restored `requirements.txt` and `sf.py` to fix GitHub Actions release workflow.
+- **Dependencies**: Added `sqlalchemy` and drivers to `requirements.txt` for `compare-livedb` support.
+
 ## [1.1.0] - 2025-12-01
 ### Added
 - **Schema Evolution**: Added support for `UNDROP TABLE`, `SWAP WITH`, `ALTER PIPE`, and `ALTER FILE FORMAT`.
