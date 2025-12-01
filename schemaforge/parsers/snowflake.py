@@ -134,6 +134,10 @@ class SnowflakeParser(GenericSQLParser):
                 # Apply modifiers
                 if val == 'VIEW' and is_secure:
                     obj_type = 'SECURE VIEW'
+                if val == 'TABLE' and is_external:
+                    # EXTERNAL TABLE - parse as table with external type
+                    self._process_snowflake_table(statement, is_transient, table_type='External Table')
+                    return
                 # Name is next token
                 idx, name_token = self._get_next_token(tokens, i + 1)
                 if name_token:
