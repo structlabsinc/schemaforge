@@ -278,6 +278,19 @@ def _handle_output(args, migration_plan):
                     output_line += f"Tag"
                 else:
                     output_line += f"{obj.obj_type}: {obj.name}"
+            elif obj.obj_type in ('SEARCH_OPTIMIZATION', 'UNSET_OPERATION', 'SWAP_OPERATION', 'UNDROP_OPERATION', 'ALTER_PIPE', 'ALTER_FILE_FORMAT'):
+                # For these operations, we just print the content (the SQL statement)
+                # We can try to format it nicely
+                if obj.obj_type == 'SWAP_OPERATION':
+                    output_line = f"{YELLOW}  ~ Swap Table: {obj.name}{RESET}"
+                elif obj.obj_type == 'UNDROP_OPERATION':
+                    output_line = f"{GREEN}  + Undrop Table: {obj.name}{RESET}"
+                elif obj.obj_type == 'ALTER_PIPE':
+                    output_line = f"{YELLOW}  ~ Alter Pipe: {obj.name}{RESET}"
+                elif obj.obj_type == 'ALTER_FILE_FORMAT':
+                    output_line = f"{YELLOW}  ~ Alter File Format: {obj.name}{RESET}"
+                else: # SEARCH_OPTIMIZATION, UNSET_OPERATION
+                    output_line = f"{YELLOW}  ~ {obj.obj_type.replace('_', ' ').title()}: {obj.name}{RESET}"
             elif obj.obj_type == 'COMMENT':
                 output_line += f"Comment"
             else:

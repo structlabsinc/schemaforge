@@ -58,6 +58,22 @@ class SnowflakeParser(GenericSQLParser):
                      self._process_alter(statement)
                 elif first_token and first_token.value.upper() in ('GRANT', 'REVOKE'):
                      self._process_grant_revoke(statement)
+                elif first_token and first_token.value.upper() == 'UNDROP':
+                     # Handle UNDROP
+                     obj_name = f"undrop_{hash(stmt_upper)}"
+                     self.schema.custom_objects.append(CustomObject(
+                        name=obj_name,
+                        obj_type='UNDROP_OPERATION',
+                        properties={'raw_sql': str(statement)}
+                     ))
+            elif stmt_upper.startswith('UNDROP'):
+                 # Handle UNDROP if type is not UNKNOWN but sqlparse didn't categorize as CREATE/ALTER
+                 obj_name = f"undrop_{hash(stmt_upper)}"
+                 self.schema.custom_objects.append(CustomObject(
+                    name=obj_name,
+                    obj_type='UNDROP_OPERATION',
+                    properties={'raw_sql': str(statement)}
+                 ))
             
             elif statement.get_type() in ('GRANT', 'REVOKE'):
                 self._process_grant_revoke(statement)
@@ -456,6 +472,26 @@ class SnowflakeParser(GenericSQLParser):
                 properties={'raw_sql': str(statement)}
             ))
             return
+
+        # Check for ALTER PIPE
+        if 'ALTER PIPE' in stmt_upper:
+             obj_name = f"alter_pipe_{hash(stmt_upper)}"
+             self.schema.custom_objects.append(CustomObject(
+                name=obj_name,
+                obj_type='ALTER_PIPE',
+                properties={'raw_sql': str(statement)}
+             ))
+             return
+
+        # Check for ALTER FILE FORMAT
+        if 'ALTER FILE FORMAT' in stmt_upper:
+             obj_name = f"alter_ff_{hash(stmt_upper)}"
+             self.schema.custom_objects.append(CustomObject(
+                name=obj_name,
+                obj_type='ALTER_FILE_FORMAT',
+                properties={'raw_sql': str(statement)}
+             ))
+             return
         
         # Handle ALTER TABLE (existing logic continues below)
         # Extract Table Name
@@ -466,7 +502,49 @@ class SnowflakeParser(GenericSQLParser):
             return
             
         # Capture specific ALTER TABLE operations as CustomObjects to ensure they appear in diffs
-        # This is especially important for UNSET/DROP operations where the base state might not have the item
+        # Check for ALTER TABLE ... SWAP WITH
+        if 'SWAP WITH' in stmt_upper:
+            # For now, just capture the whole statement as a CustomObject
+            # This is simpler and sufficient for the diff engine
+            obj_name = f"swap_{hash(stmt_upper)}"
+            self.schema.custom_objects.append(CustomObject(
+                name=obj_name,
+                obj_type='SWAP_OPERATION',
+                properties={'raw_sql': str(statement)}
+            ))
+            return
+
+        # Check for UNDROP TABLE
+        if 'UNDROP TABLE' in stmt_upper:
+             obj_name = f"undrop_{hash(stmt_upper)}"
+             self.schema.custom_objects.append(CustomObject(
+                name=obj_name,
+                obj_type='UNDROP_OPERATION',
+                properties={'raw_sql': str(statement)}
+             ))
+             return
+
+        # Check for ALTER PIPE
+        if stmt_upper.startswith('ALTER PIPE'):
+             obj_name = f"alter_pipe_{hash(stmt_upper)}"
+             self.schema.custom_objects.append(CustomObject(
+                name=obj_name,
+                obj_type='ALTER_PIPE',
+                properties={'raw_sql': str(statement)}
+             ))
+             return
+
+        # Check for ALTER FILE FORMAT
+        if stmt_upper.startswith('ALTER FILE FORMAT'):
+             obj_name = f"alter_ff_{hash(stmt_upper)}"
+             self.schema.custom_objects.append(CustomObject(
+                name=obj_name,
+                obj_type='ALTER_FILE_FORMAT',
+                properties={'raw_sql': str(statement)}
+             ))
+             return
+
+        # Standard ALTER TABLE processing
         if 'SEARCH OPTIMIZATION' in stmt_upper:
             self.schema.custom_objects.append(CustomObject(
                 obj_type='ALTER TABLE',
