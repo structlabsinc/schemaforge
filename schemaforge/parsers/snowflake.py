@@ -9,6 +9,12 @@ from sqlparse.tokens import Keyword, DML, DDL, Name
 import sys
 
 class SnowflakeParser(GenericSQLParser):
+    def _get_next_token(self, tokens, start_idx):
+        for i in range(start_idx, len(tokens)):
+            if not tokens[i].is_whitespace:
+                return i, tokens[i]
+        return None, None
+
     def _clean_type(self, type_str):
         type_str = type_str.upper().strip()
         # Snowflake specific types
@@ -27,21 +33,27 @@ class SnowflakeParser(GenericSQLParser):
             
             if statement.get_type() in ('CREATE', 'CREATE OR REPLACE'):
                 self._process_create(statement)
+            elif statement.get_type() == 'ALTER':
+                self._process_alter(statement)
             elif statement.get_type() == 'UNKNOWN':
                 # sqlparse might not recognize some Snowflake commands as CREATE
                 # Check first token
                 first_token = statement.token_first()
                 if first_token and first_token.match(DDL, 'CREATE'):
                     self._process_create(statement)
+                elif first_token and first_token.match(DDL, 'ALTER'):
+                    self._process_alter(statement)
                 # Also check if it starts with CREATE but sqlparse missed it (e.g. CREATE OR REPLACE)
                 elif first_token and first_token.value.upper() == 'CREATE':
                      self._process_create(statement)
+                elif first_token and first_token.value.upper() == 'ALTER':
+                     self._process_alter(statement)
                     
         return self.schema
 
     def _process_create(self, statement):
         # Check for CREATE [OR REPLACE] [TRANSIENT] TABLE
-        tokens = [t for t in statement.tokens if not t.is_whitespace]
+        tokens = statement.tokens
         
         obj_type = None
         obj_name = None
@@ -52,6 +64,9 @@ class SnowflakeParser(GenericSQLParser):
             return token_val == keyword or token_val.startswith(keyword + ' ')
             
         for i, token in enumerate(tokens):
+            if token.is_whitespace:
+                continue
+            
             val = token.value.upper()
             
             if val == 'TRANSIENT':
@@ -62,37 +77,98 @@ class SnowflakeParser(GenericSQLParser):
             if val in ('TABLE', 'VIEW', 'SEQUENCE', 'PROCEDURE', 'STREAM', 'SCHEMA'):
                 obj_type = val
                 # Name is next token
-                if i + 1 < len(tokens):
-                    name_token = tokens[i+1]
+                idx, name_token = self._get_next_token(tokens, i + 1)
+                if name_token:
                     # Handle Function/Identifier wrappers
                     if isinstance(name_token, (sqlparse.sql.Identifier, sqlparse.sql.Function)):
                         obj_name = name_token.get_real_name()
                     else:
                         obj_name = name_token.value
+                    
+                    obj_name = self._clean_name(obj_name)
                 break
             
             # MATERIALIZED VIEW
             if val == 'MATERIALIZED':
-                if i + 1 < len(tokens) and tokens[i+1].value.upper() == 'VIEW':
+                idx, next_token = self._get_next_token(tokens, i + 1)
+                if next_token and next_token.value.upper() == 'VIEW':
                     obj_type = 'MATERIALIZED VIEW'
-                    if i + 2 < len(tokens):
-                        obj_name = tokens[i+2].value
+                    idx2, name_token = self._get_next_token(tokens, idx + 1)
+                    if name_token:
+                        obj_name = self._clean_name(name_token.value)
                     break
 
-            # Objects that might be grouped (STAGE name, PIPE name, TASK name, STREAM name)
-            for kw in ('STAGE', 'PIPE', 'TASK', 'STREAM'):
+            # Objects that might be grouped (STAGE name, PIPE name, TASK name, STREAM name, TAG name, FUNCTION name)
+            for kw in ('STAGE', 'PIPE', 'TASK', 'STREAM', 'TAG', 'FUNCTION'):
                 if check_keyword(val, kw):
                     obj_type = kw
                     if val == kw:
                         # Separate token
-                        if i + 1 < len(tokens):
-                            obj_name = tokens[i+1].value
+                        idx, name_token = self._get_next_token(tokens, i + 1)
+                        if name_token:
+                            obj_name = self._clean_name(name_token.value)
                     else:
                         # Grouped token (STAGE my_stage)
                         parts = token.value.split(maxsplit=1)
                         if len(parts) > 1:
-                            obj_name = parts[1]
+                            obj_name = self._clean_name(parts[1])
+                    
+                    # Handle Function signature (remove parens)
+                    if kw == 'FUNCTION' and obj_name and '(' in obj_name:
+                        obj_name = obj_name.split('(')[0]
+                    elif kw == 'FUNCTION' and obj_name and i + 2 < len(tokens) and tokens[i+2].value == '(':
+                         # FUNCTION name ( args )
+                         pass 
                     break
+            
+            # MASKING POLICY / ROW ACCESS POLICY
+            if val == 'MASKING' or val == 'MASKING POLICY':
+                obj_type = 'MASKING POLICY'
+                if val == 'MASKING':
+                    # Check next token
+                    idx, next_t = self._get_next_token(tokens, i + 1)
+                    if next_t and next_t.value.upper() == 'POLICY':
+                        # Get name
+                        idx2, name_t = self._get_next_token(tokens, idx + 1)
+                        if name_t:
+                            obj_name = self._clean_name(name_t.value)
+                        break
+                else:
+                    # Single token MASKING POLICY
+                    idx, name_t = self._get_next_token(tokens, i + 1)
+                    if name_t:
+                        obj_name = self._clean_name(name_t.value)
+                    break
+            
+            if val == 'ROW' or val == 'ROW ACCESS POLICY':
+                obj_type = 'ROW ACCESS POLICY'
+                if val == 'ROW':
+                    # Check ACCESS
+                    idx, next_t = self._get_next_token(tokens, i + 1)
+                    if next_t and next_t.value.upper() == 'ACCESS':
+                        # Check POLICY
+                        idx2, next_t2 = self._get_next_token(tokens, idx + 1)
+                        if next_t2:
+                            val2 = next_t2.value.upper()
+                            if val2 == 'POLICY':
+                                # Separate token
+                                idx3, name_t = self._get_next_token(tokens, idx2 + 1)
+                                if name_t:
+                                    obj_name = self._clean_name(name_t.value)
+                                break
+                            elif val2.startswith('POLICY '):
+                                # Grouped token: POLICY name ...
+                                parts = next_t2.value.split(maxsplit=2)
+                                if len(parts) > 1:
+                                    obj_name = self._clean_name(parts[1])
+                                break
+                else:
+                    # Single token ROW ACCESS POLICY
+                    idx, name_t = self._get_next_token(tokens, i + 1)
+                    if name_t:
+                        obj_name = self._clean_name(name_t.value)
+                    break
+
             if obj_type:
                 break
                 
@@ -134,13 +210,6 @@ class SnowflakeParser(GenericSQLParser):
         # Use generic parser logic to get basic table structure
         # But we need to handle Snowflake specific syntax
         
-        # Find table name
-        name_idx = -1
-        for i, token in enumerate([]): # Wait, tokens is not defined here! It was defined in _process_create
-             # I need to re-extract tokens or pass them?
-             # _process_snowflake_table uses 'statement'
-             pass
-             
         # Re-extract tokens for this method
         tokens = [t for t in statement.tokens if not t.is_whitespace]
         
@@ -156,16 +225,10 @@ class SnowflakeParser(GenericSQLParser):
         name_token = tokens[name_idx]
         if isinstance(name_token, (sqlparse.sql.Identifier, sqlparse.sql.Function)):
             table_name = name_token.get_real_name()
-            # Check if original was quoted
-            # This is tricky with sqlparse, get_real_name strips quotes
-            # We need to check the raw value of the identifier
-            raw_val = name_token.value
-            if not (raw_val.startswith('"') and raw_val.endswith('"')):
-                table_name = table_name.upper()
         else:
-            table_name = name_token.value.upper() # Keyword or simple name, default to upper
+            table_name = name_token.value
             
-        table = Table(name=table_name, is_transient=is_transient)
+        table = Table(name=self._clean_name(table_name), is_transient=is_transient)
         
         # Find columns
         # If table name was a Function, columns are inside it
@@ -243,3 +306,55 @@ class SnowflakeParser(GenericSQLParser):
                 table.comment = match.group(1)
 
         self.schema.tables.append(table)
+
+    def _process_alter(self, statement):
+        # Handle ALTER TABLE for Policies and Tags
+        import re
+        stmt_str = str(statement).upper()
+        
+        # Extract Table Name
+        # ALTER TABLE name ...
+        match_table = re.search(r'ALTER\s+TABLE\s+(\w+)', stmt_str, re.IGNORECASE)
+        if not match_table:
+            return
+            
+        table_name = self._clean_name(match_table.group(1))
+        table = self.schema.get_table(table_name)
+        if not table:
+            # Table might not be in schema if we are parsing partial DDL or if it was created in another file
+            # For now, we only support modifying tables defined in the same parsing context or previously parsed
+            return
+
+        # Masking Policy
+        # ALTER TABLE t MODIFY COLUMN c SET MASKING POLICY p
+        if 'MASKING POLICY' in stmt_str:
+            match_mp = re.search(r'MODIFY\s+COLUMN\s+(\w+)\s+SET\s+MASKING\s+POLICY\s+(\w+)', stmt_str, re.IGNORECASE)
+            if match_mp:
+                col_name = match_mp.group(1)
+                policy_name = match_mp.group(2)
+                table.policies.append(f"MASKING POLICY {policy_name} ON {col_name}")
+        
+        # Row Access Policy
+        # ALTER TABLE t ADD ROW ACCESS POLICY p ON (c)
+        if 'ROW ACCESS POLICY' in stmt_str:
+            match_rap = re.search(r'ADD\s+ROW\s+ACCESS\s+POLICY\s+(\w+)\s+ON\s*\((.*?)\)', stmt_str, re.IGNORECASE)
+            if match_rap:
+                policy_name = match_rap.group(1)
+                cols = match_rap.group(2)
+                table.policies.append(f"ROW ACCESS POLICY {policy_name} ON ({cols})")
+                
+        # Tags
+        # ALTER TABLE t SET TAG tag1 = 'val1', tag2 = 'val2'
+        if 'SET TAG' in stmt_str:
+            match_tag = re.search(r'SET\s+TAG\s+(.*)', stmt_str, re.IGNORECASE)
+            if match_tag:
+                tags_content = match_tag.group(1).rstrip(';') # Remove trailing semicolon
+                # Split by comma, but be careful of quoted values containing commas
+                # Simple split for now
+                tag_assignments = tags_content.split(',')
+                for tag_assign in tag_assignments:
+                    if '=' in tag_assign:
+                        k, v = tag_assign.split('=', 1)
+                        # Clean value: strip whitespace, then quotes, then whitespace again
+                        clean_v = v.strip().strip("'").strip()
+                        table.tags[self._clean_name(k.strip())] = clean_v

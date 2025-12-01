@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
-from schemaforge.models import Schema, Table, Column, Index, ForeignKey, CustomObject
+from typing import List, Optional, Tuple, Dict
+from schemaforge.models import Schema, Table, Column, Index, ForeignKey, CheckConstraint, CustomObject
 
 @dataclass
 class TableDiff:
@@ -13,6 +13,8 @@ class TableDiff:
     added_fks: List[ForeignKey] = field(default_factory=list)
     added_fks: List[ForeignKey] = field(default_factory=list)
     dropped_fks: List[ForeignKey] = field(default_factory=list)
+    added_checks: List[CheckConstraint] = field(default_factory=list)
+    dropped_checks: List[CheckConstraint] = field(default_factory=list)
     property_changes: List[str] = field(default_factory=list)
     
     def to_dict(self):
@@ -28,6 +30,8 @@ class TableDiff:
             "dropped_indexes": [i.to_dict() for i in self.dropped_indexes],
             "added_fks": [fk.to_dict() for fk in self.added_fks],
             "dropped_fks": [fk.to_dict() for fk in self.dropped_fks],
+            "added_checks": [c.to_dict() for c in self.added_checks],
+            "dropped_checks": [c.to_dict() for c in self.dropped_checks],
             "property_changes": self.property_changes
         }
 
@@ -154,6 +158,20 @@ class Comparator:
                 diff.dropped_fks.append(fk)
                 has_changes = True
         
+        # Check Constraints
+        old_checks = {c.name: c for c in old_table.check_constraints}
+        new_checks = {c.name: c for c in new_table.check_constraints}
+        
+        for name, check in new_checks.items():
+            if name not in old_checks:
+                diff.added_checks.append(check)
+                has_changes = True
+        
+        for name, check in old_checks.items():
+            if name not in new_checks:
+                diff.dropped_checks.append(check)
+                has_changes = True
+        
         # Table Properties
         if old_table.cluster_by != new_table.cluster_by:
             diff.property_changes.append(f"Cluster Key: {old_table.cluster_by} -> {new_table.cluster_by}")
@@ -169,6 +187,16 @@ class Comparator:
             
         if old_table.is_transient != new_table.is_transient:
             diff.property_changes.append(f"Transient: {old_table.is_transient} -> {new_table.is_transient}")
+            has_changes = True
+            
+        # Policies
+        if set(old_table.policies) != set(new_table.policies):
+            diff.property_changes.append(f"Policies: {old_table.policies} -> {new_table.policies}")
+            has_changes = True
+            
+        # Tags
+        if old_table.tags != new_table.tags:
+            diff.property_changes.append(f"Tags: {old_table.tags} -> {new_table.tags}")
             has_changes = True
             
         # Other Dialect Properties
@@ -194,8 +222,19 @@ class Comparator:
 
         return diff if has_changes else None
 
-    def _is_column_modified(self, old_col: Column, new_col: Column) -> bool:
-        return (old_col.data_type != new_col.data_type or 
-                old_col.is_nullable != new_col.is_nullable or
-                old_col.default_value != new_col.default_value or
-                old_col.is_primary_key != new_col.is_primary_key)
+    def _is_column_modified(self, old_col: Column, new_col: Column) -> Optional[List[str]]:
+        changes = []
+        if old_col.data_type != new_col.data_type:
+            changes.append(f"Data Type: {old_col.data_type} -> {new_col.data_type}")
+        if old_col.is_nullable != new_col.is_nullable:
+            changes.append(f"Nullable: {old_col.is_nullable} -> {new_col.is_nullable}")
+        if old_col.default_value != new_col.default_value:
+            changes.append(f"Default: {old_col.default_value} -> {new_col.default_value}")
+        if old_col.is_primary_key != new_col.is_primary_key:
+            changes.append(f"Primary Key: {old_col.is_primary_key} -> {new_col.is_primary_key}")
+        if old_col.comment != new_col.comment:
+            changes.append(f"Comment: {old_col.comment} -> {new_col.comment}")
+        if old_col.collation != new_col.collation:
+            changes.append(f"Collation: {old_col.collation} -> {new_col.collation}")
+            
+        return changes if changes else None

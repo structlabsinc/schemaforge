@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.10] - 2025-12-01
+### Fixed
+- **Snowflake Constraints**: Added support for `CHECK` and `UNIQUE` constraints.
+- **Snowflake Governance**: Added support for `MASKING POLICY`, `ROW ACCESS POLICY`, and Object Tagging (`SET TAG`).
+- **Snowflake Functions**: Added support for User Defined Functions (`CREATE FUNCTION`).
+- **Metadata**: Added support for Column Comments and Collation (`COLLATE`).
+- **Parsing**: Fixed `ALTER TABLE` parsing to correctly identify table names and apply property changes.
+- **Parsing**: Fixed `ROW ACCESS POLICY` parsing when tokens are grouped.
+- **Parsing**: Fixed Table name case sensitivity issues in Snowflake parser (now consistently lowercased).
+
 ## [1.0.9] - 2025-12-01
 ### Fixed
 - **Snowflake**: Fixed `CLUSTER BY` parsing to correctly handle functions and nested parenthesis.

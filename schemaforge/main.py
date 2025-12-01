@@ -188,6 +188,10 @@ def _handle_output(args, migration_plan):
                 output_content += f"{GREEN}    + Add Column: {col.name} ({col.data_type}){RESET}\n"
             for col in diff.dropped_columns:
                 output_content += f"{RED}    - Drop Column: {col.name}{RESET}\n"
+            for check in diff.added_checks:
+                output_content += f"{GREEN}    + Add Check Constraint: {check.name} ({check.expression}){RESET}\n"
+            for check in diff.dropped_checks:
+                output_content += f"{RED}    - Drop Check Constraint: {check.name}{RESET}\n"
             for old_col, new_col in diff.modified_columns:
                 changes = []
                 if old_col.data_type != new_col.data_type:
@@ -198,6 +202,10 @@ def _handle_output(args, migration_plan):
                     changes.append(f"Default: {old_col.default_value} -> {new_col.default_value}")
                 if old_col.is_primary_key != new_col.is_primary_key:
                     changes.append(f"PK: {old_col.is_primary_key} -> {new_col.is_primary_key}")
+                if old_col.comment != new_col.comment:
+                    changes.append(f"Comment: {old_col.comment} -> {new_col.comment}")
+                if old_col.collation != new_col.collation:
+                    changes.append(f"Collation: {old_col.collation} -> {new_col.collation}")
                 
                 change_str = ", ".join(changes)
                 output_content += f"{YELLOW}    ~ Modify Column: {new_col.name} ({change_str}){RESET}\n"

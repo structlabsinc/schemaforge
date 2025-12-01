@@ -8,6 +8,8 @@ class Column:
     is_nullable: bool = True
     default_value: Optional[Any] = None
     is_primary_key: bool = False
+    comment: Optional[str] = None # Added comment field
+    collation: Optional[str] = None
     # DB2/Oracle Specifics
     is_identity: bool = False
     
@@ -21,7 +23,20 @@ class Column:
             "is_nullable": self.is_nullable,
             "default_value": str(self.default_value) if self.default_value else None,
             "is_primary_key": self.is_primary_key,
+            "comment": self.comment, # Added comment to to_dict
+            "collation": self.collation,
             "is_identity": self.is_identity
+        }
+
+@dataclass
+class CheckConstraint:
+    name: str
+    expression: str
+    
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "expression": self.expression
         }
 
 @dataclass
@@ -77,12 +92,16 @@ class Table:
     columns: List[Column] = field(default_factory=list)
     indexes: List[Index] = field(default_factory=list)
     foreign_keys: List[ForeignKey] = field(default_factory=list)
+    check_constraints: List[CheckConstraint] = field(default_factory=list)
     
     # Snowflake Specifics
     is_transient: bool = False
     cluster_by: List[str] = field(default_factory=list)
     retention_days: Optional[int] = None
+    retention_days: Optional[int] = None
     comment: Optional[str] = None
+    policies: List[str] = field(default_factory=list)
+    tags: dict = field(default_factory=dict)
     
     # DB2/Oracle Specifics
     tablespace: Optional[str] = None
@@ -107,10 +126,14 @@ class Table:
             "columns": [c.to_dict() for c in self.columns],
             "indexes": [i.to_dict() for i in self.indexes],
             "foreign_keys": [fk.to_dict() for fk in self.foreign_keys],
+            "check_constraints": [c.to_dict() for c in self.check_constraints],
             "is_transient": self.is_transient,
             "cluster_by": self.cluster_by,
             "retention_days": self.retention_days,
+            "retention_days": self.retention_days,
             "comment": self.comment,
+            "policies": self.policies,
+            "tags": self.tags,
             "tablespace": self.tablespace,
             "partition_by": self.partition_by,
             "is_unlogged": self.is_unlogged,

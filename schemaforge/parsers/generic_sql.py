@@ -104,6 +104,7 @@ class GenericSQLParser(BaseParser):
         if not table_name:
             return None
             
+        print(f"DEBUG: Extracted Table Name: {table_name}, Cleaned: {self._clean_name(table_name)}")
         table = Table(name=self._clean_name(table_name))
         
         _, parenthesis = statement.token_next_by(i=sqlparse.sql.Parenthesis)
@@ -242,6 +243,16 @@ class GenericSQLParser(BaseParser):
                 # tokens: CONSTRAINT, name, PRIMARY KEY, (cols)
                 if len(tokens) > type_idx + 1 and isinstance(tokens[type_idx+1], sqlparse.sql.Parenthesis):
                     self._extract_pk_cols(tokens[type_idx+1], table)
+        
+        elif constraint_type == 'UNIQUE':
+            # CONSTRAINT name UNIQUE (cols)
+            if len(tokens) > type_idx + 1 and isinstance(tokens[type_idx+1], sqlparse.sql.Parenthesis):
+                self._extract_unique_constraint(tokens[type_idx+1], table, constraint_name)
+                
+        elif constraint_type == 'CHECK':
+            # CONSTRAINT name CHECK (expr)
+            if len(tokens) > type_idx + 1 and isinstance(tokens[type_idx+1], sqlparse.sql.Parenthesis):
+                self._extract_check_constraint(tokens[type_idx+1], table, constraint_name)
 
     def _extract_pk_cols(self, parenthesis, table: Table):
         content = parenthesis.tokens[1:-1]
@@ -313,6 +324,34 @@ class GenericSQLParser(BaseParser):
             )
             table.foreign_keys.append(fk)
 
+    def _extract_unique_constraint(self, parenthesis, table: Table, name: str):
+        content = parenthesis.tokens[1:-1]
+        cols = []
+        for t in content:
+            col_name = None
+            if isinstance(t, Identifier):
+                col_name = t.get_real_name()
+            elif t.ttype is sqlparse.tokens.Name:
+                col_name = t.value
+            
+            if col_name:
+                cols.append(self._clean_name(col_name))
+        
+        if cols:
+            # Add as Unique Index
+            index = Index(name=self._clean_name(name), columns=cols, is_unique=True)
+            table.indexes.append(index)
+
+    def _extract_check_constraint(self, parenthesis, table: Table, name: str):
+        # Extract expression inside parenthesis
+        # parenthesis.value includes outer parens, so strip them
+        expr = parenthesis.value[1:-1].strip()
+        
+        # Add Check Constraint
+        from schemaforge.models import CheckConstraint
+        check = CheckConstraint(name=self._clean_name(name), expression=expr)
+        table.check_constraints.append(check)
+
     def _process_column(self, tokens, table: Table):
         # Filter out whitespace tokens for easier processing
         filtered_tokens = [t for t in tokens if not t.is_whitespace]
@@ -354,24 +393,25 @@ class GenericSQLParser(BaseParser):
             if 'PRIMARY KEY' in full_def:
                 column.is_primary_key = True
                 
-            # Parse DEFAULT value
-            # Iterate tokens to find DEFAULT
-            for i, token in enumerate(tokens):
+            # Parse DEFAULT value and COMMENT
+            for i, token in enumerate(filtered_tokens):
+                # Check for DEFAULT
                 if token.value.upper() == 'DEFAULT':
                     # Collect tokens until end or next constraint keyword
-                    default_tokens = []
-                    for j in range(i + 1, len(tokens)):
-                        t = tokens[j]
-                        val_upper = t.value.upper()
+                    default_val_tokens = []
+                    next_idx = i + 1
+                    while next_idx < len(filtered_tokens):
+                        next_token = filtered_tokens[next_idx]
+                        val_upper = next_token.value.upper()
+                        # Keywords that might terminate a DEFAULT clause
                         if val_upper in ('NOT', 'NULL', 'PRIMARY', 'KEY', 'UNIQUE', 'CHECK', 'REFERENCES', 'CONSTRAINT', 'GENERATED', 'AUTO_INCREMENT', 'COMMENT'):
-                            # Check for NOT NULL specifically
-                            if val_upper == 'NOT' and j + 1 < len(tokens) and tokens[j+1].value.upper() == 'NULL':
+                            # Special handling for 'NOT NULL' and 'PRIMARY KEY' as they are multi-word
+                            if val_upper == 'NOT' and next_idx + 1 < len(filtered_tokens) and filtered_tokens[next_idx+1].value.upper() == 'NULL':
                                 break
-                            # Check for PRIMARY KEY
-                            if val_upper == 'PRIMARY' and j + 1 < len(tokens) and tokens[j+1].value.upper() == 'KEY':
+                            if val_upper == 'PRIMARY' and next_idx + 1 < len(filtered_tokens) and filtered_tokens[next_idx+1].value.upper() == 'KEY':
                                 break
-                            # Other keywords usually start a new constraint/property
-                            if val_upper in ('PRIMARY', 'KEY', 'UNIQUE', 'CHECK', 'REFERENCES', 'CONSTRAINT', 'GENERATED', 'AUTO_INCREMENT', 'COMMENT'):
+                            # For other single keywords, break
+                            if val_upper in ('UNIQUE', 'CHECK', 'REFERENCES', 'CONSTRAINT', 'GENERATED', 'AUTO_INCREMENT', 'COMMENT'):
                                 break
                         
                         if not t.is_whitespace:
@@ -379,7 +419,16 @@ class GenericSQLParser(BaseParser):
                     
                     if default_tokens:
                         column.default_value = " ".join(default_tokens)
-                    break
+                
+                # Check for COMMENT
+                if token.value.upper() == 'COMMENT':
+                    if i + 1 < len(filtered_tokens):
+                        column.comment = filtered_tokens[i+1].value.strip("'")
+                        
+                # Check for COLLATE
+                if token.value.upper() == 'COLLATE':
+                    if i + 1 < len(filtered_tokens):
+                        column.collation = filtered_tokens[i+1].value.strip("'")
 
             table.columns.append(column)
 
