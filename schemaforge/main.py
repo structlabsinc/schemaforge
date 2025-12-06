@@ -192,7 +192,8 @@ def _handle_output(args, migration_plan):
             for col in diff.dropped_columns:
                 output_content += f"{RED}    - Drop Column: {col.name}{RESET}\n"
             for check in diff.added_checks:
-                output_content += f"{GREEN}    + Add Check Constraint: {check.name} ({check.expression}){RESET}\n"
+                comment_str = f" Comment: {check.comment}" if check.comment else ""
+                output_content += f"{GREEN}    + Add Check Constraint: {check.name} ({check.expression}){comment_str}{RESET}\n"
             for check in diff.dropped_checks:
                 output_content += f"{RED}    - Drop Check Constraint: {check.name}{RESET}\n"
             for idx in diff.added_indexes:
@@ -207,6 +208,19 @@ def _handle_output(args, migration_plan):
                 output_content += f"{GREEN}    + Add Foreign Key: {fk.name} ({cols}) REFERENCES {fk.ref_table}({ref_cols}){RESET}\n"
             for fk in diff.dropped_fks:
                 output_content += f"{RED}    - Drop Foreign Key: {fk.name}{RESET}\n"
+            for excl in diff.added_exclusion_constraints:
+                output_content += f"{GREEN}    + Add Exclusion Constraint: {excl.name} ({excl.method}){RESET}\n"
+            for excl in diff.dropped_exclusion_constraints:
+                output_content += f"{RED}    - Drop Exclusion Constraint: {excl.name}{RESET}\n"
+            for old_excl, new_excl in diff.modified_exclusion_constraints:
+                changes = []
+                if old_excl.method != new_excl.method:
+                    changes.append(f"Method: {old_excl.method} -> {new_excl.method}")
+                if old_excl.elements != new_excl.elements:
+                     changes.append(f"Elements: {old_excl.elements} -> {new_excl.elements}")
+                if old_excl.comment != new_excl.comment:
+                     changes.append(f"Comment: {old_excl.comment} -> {new_excl.comment}")
+                output_content += f"{YELLOW}    ~ Modify Exclusion Constraint: {new_excl.name} ({', '.join(changes)}){RESET}\n"
             for old_col, new_col in diff.modified_columns:
                 changes = []
                 if old_col.data_type != new_col.data_type:
@@ -238,7 +252,21 @@ def _handle_output(args, migration_plan):
                         changes.append(f"Unset Masking Policy")
                 if old_col.is_identity != new_col.is_identity:
                     changes.append(f"Identity: {old_col.is_identity} -> {new_col.is_identity}")
+                if old_col.identity_start != new_col.identity_start:
+                    changes.append(f"Identity Start: {old_col.identity_start} -> {new_col.identity_start}")
+                if old_col.identity_step != new_col.identity_step:
+                    changes.append(f"Identity Step: {old_col.identity_step} -> {new_col.identity_step}")
+                if old_col.identity_cycle != new_col.identity_cycle:
+                    changes.append(f"Identity Cycle: {old_col.identity_cycle} -> {new_col.identity_cycle}")
+                if old_col.is_generated != new_col.is_generated:
+                    changes.append(f"Generated: {old_col.is_generated} -> {new_col.is_generated}")
+                if old_col.generation_expression != new_col.generation_expression:
+                    changes.append(f"Generation Expr: {old_col.generation_expression} -> {new_col.generation_expression}")
                 
+                 # Check for comment changes on columns
+                if old_col.comment != new_col.comment:
+                    changes.append(f"Comment: {old_col.comment} -> {new_col.comment}")
+
                 if changes:
                     output_content += f"{YELLOW}    ~ Modify Column: {new_col.name}{RESET}\n"
                     for change in changes:
@@ -286,11 +314,11 @@ def _handle_output(args, migration_plan):
                 elif obj.obj_type == 'UNDROP_OPERATION':
                     output_line = f"{GREEN}  + Undrop Table: {obj.name}{RESET}"
                 elif obj.obj_type == 'ALTER_PIPE':
-                    output_line = f"{YELLOW}  ~ Alter Pipe: {obj.name}{RESET}"
+                    output_line = f"{YELLOW}  ~ Alter Pipe: {obj.name}"
                 elif obj.obj_type == 'ALTER_FILE_FORMAT':
-                    output_line = f"{YELLOW}  ~ Alter File Format: {obj.name}{RESET}"
+                    output_line = f"{YELLOW}  ~ Alter File Format: {obj.name}"
                 else: # SEARCH_OPTIMIZATION, UNSET_OPERATION
-                    output_line = f"{YELLOW}  ~ {obj.obj_type.replace('_', ' ').title()}: {obj.name}{RESET}"
+                    output_line = f"{YELLOW}  ~ {obj.obj_type.replace('_', ' ').title()}: {obj.name}"
             elif obj.obj_type == 'COMMENT':
                 output_line += f"Comment"
             else:
@@ -304,8 +332,35 @@ def _handle_output(args, migration_plan):
         for old_obj, new_obj in migration_plan.modified_custom_objects:
             output_content += f"{YELLOW}  ~ Modify {new_obj.obj_type}: {new_obj.name}{RESET}\n"
 
+        # Domains
+        for obj in migration_plan.new_domains:
+            output_content += f"{GREEN}  + Create Domain: {obj.name}{RESET}\n"
+        for obj in migration_plan.dropped_domains:
+            output_content += f"{RED}  - Drop Domain: {obj.name}{RESET}\n"
+        for old_obj, new_obj in migration_plan.modified_domains:
+            output_content += f"{YELLOW}  ~ Modify DOMAIN: {new_obj.name}{RESET}\n"
+
+        # Types
+        for obj in migration_plan.new_types:
+            output_content += f"{GREEN}  + Create Type: {obj.name}{RESET}\n"
+        for obj in migration_plan.dropped_types:
+            output_content += f"{RED}  - Drop Type: {obj.name}{RESET}\n"
+        for old_obj, new_obj in migration_plan.modified_types:
+            output_content += f"{YELLOW}  ~ Modify TYPE: {new_obj.name}{RESET}\n"
+
+        # Policies
+        for obj in migration_plan.new_policies:
+            output_content += f"{GREEN}  + Create Policy: {obj.name}{RESET}\n"
+        for obj in migration_plan.dropped_policies:
+            output_content += f"{RED}  - Drop Policy: {obj.name}{RESET}\n"
+        for old_obj, new_obj in migration_plan.modified_policies:
+            output_content += f"{YELLOW}  ~ Modify POLICY: {new_obj.name}{RESET}\n"
+
         if not (migration_plan.new_tables or migration_plan.dropped_tables or migration_plan.modified_tables or
-                migration_plan.new_custom_objects or migration_plan.dropped_custom_objects or migration_plan.modified_custom_objects):
+                migration_plan.new_custom_objects or migration_plan.dropped_custom_objects or migration_plan.modified_custom_objects or
+                migration_plan.new_policies or migration_plan.dropped_policies or migration_plan.modified_policies or
+                migration_plan.new_domains or migration_plan.dropped_domains or migration_plan.modified_domains or
+                migration_plan.new_types or migration_plan.dropped_types or migration_plan.modified_types):
              output_content += "No changes detected.\n"
              
         print(output_content)

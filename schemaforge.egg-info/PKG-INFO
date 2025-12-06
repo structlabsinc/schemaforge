@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: schemaforge
+Version: 1.1.2
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: OS Independent
+License-File: LICENSE
+Requires-Dist: sqlparse>=0.4.4
+Requires-Dist: sqlalchemy>=2.0.0
+Requires-Dist: pymysql>=1.0.0
+Requires-Dist: psycopg2-binary>=2.9.0
+Requires-Dist: snowflake-sqlalchemy>=1.4.0
+Dynamic: classifier
+Dynamic: license-file
+Dynamic: requires-dist

@@ -49,7 +49,8 @@ class TestBlackboxCLI(unittest.TestCase):
         open(f1, 'w').close()
         open(f2, 'w').close()
         
-        result = self.run_dac(f"compare {f1} {f2} --dialect sqlite --plan")
+        # CLI syntax: compare --source f1 --target f2 --dialect ...
+        result = self.run_dac(f"compare --source {f1} --target {f2} --dialect sqlite --plan")
         self.assertEqual(result.returncode, 0)
         # Output might vary depending on implementation of empty diff
         # self.assertIn("No changes detected", result.stdout) 
@@ -62,7 +63,7 @@ class TestBlackboxCLI(unittest.TestCase):
         open(f2, 'w').close()
         
         # Depending on implementation, this might fail or just parse nothing
-        result = self.run_dac(f"compare {f1} {f2} --dialect sqlite")
+        result = self.run_dac(f"compare --source {f1} --target {f2} --dialect sqlite")
         # If it parses nothing, it sees empty schema. 
         # Ideally, a robust parser might warn. 
         # For now, let's check if it crashes.
@@ -79,7 +80,7 @@ class TestBlackboxCLI(unittest.TestCase):
         with open(f2, 'w') as f:
             f.write("CREATE TABLE people (id INT);")
             
-        result = self.run_dac(f"compare {f1} {f2} --dialect sqlite --plan")
+        result = self.run_dac(f"compare --source {f1} --target {f2} --dialect sqlite --plan")
         self.assertEqual(result.returncode, 0)
         self.assertIn("Drop Table: users", result.stdout)
         self.assertIn("Create Table: people", result.stdout)
@@ -93,9 +94,10 @@ class TestBlackboxCLI(unittest.TestCase):
         with open(f2, 'w') as f:
             f.write("CREATE TABLE t1 (col1 VARCHAR(50));")
             
-        result = self.run_dac(f"compare {f1} {f2} --dialect sqlite --plan")
+        result = self.run_dac(f"compare --source {f1} --target {f2} --dialect sqlite --plan")
         self.assertEqual(result.returncode, 0)
-        self.assertIn("Modify Column: col1 (INT -> VARCHAR(50))", result.stdout)
+        self.assertIn("Modify Column: col1", result.stdout)
+        self.assertIn("INT -> VARCHAR(50)", result.stdout)
 
     def test_constraint_modifications(self):
         # V1: No PK
@@ -108,7 +110,7 @@ class TestBlackboxCLI(unittest.TestCase):
         with open(f2, 'w') as f:
             f.write("CREATE TABLE t1 (id INT PRIMARY KEY);")
             
-        result = self.run_dac(f"compare {f1} {f2} --dialect sqlite --plan")
+        result = self.run_dac(f"compare --source {f1} --target {f2} --dialect sqlite --plan")
         self.assertEqual(result.returncode, 0)
         # This depends on how generator handles PK addition on existing column
         # It might be ALTER TABLE ADD PRIMARY KEY or MODIFY COLUMN
@@ -130,7 +132,7 @@ class TestBlackboxCLI(unittest.TestCase):
         with open(target_file, 'w') as f:
             f.write("CREATE TABLE t1 (id INT);\nCREATE TABLE t2 (id INT);")
             
-        result = self.run_dac(f"compare {src_dir} {target_file} --dialect sqlite --plan")
+        result = self.run_dac(f"compare --source {src_dir} --target {target_file} --dialect sqlite --plan")
         self.assertEqual(result.returncode, 0)
         self.assertIn("No changes detected", result.stdout)
 
@@ -148,7 +150,7 @@ class TestBlackboxCLI(unittest.TestCase):
         with open(target_file, 'w') as f:
             f.write("CREATE TABLE t1 (id INT);")
             
-        result = self.run_dac(f"compare {src_dir} {target_file} --dialect sqlite --plan")
+        result = self.run_dac(f"compare --source {src_dir} --target {target_file} --dialect sqlite --plan")
         self.assertEqual(result.returncode, 0)
         self.assertIn("No changes detected", result.stdout)
 
@@ -164,7 +166,7 @@ class TestBlackboxCLI(unittest.TestCase):
         with open(f2, 'w') as f:
             f.write("CREATE TABLE t1 (id INTEGER DEFAULT nextval('seq'));")
             
-        result = self.run_dac(f"compare {f1} {f2} --dialect postgres --plan")
+        result = self.run_dac(f"compare --source {f1} --target {f2} --dialect postgres --plan")
         self.assertEqual(result.returncode, 0)
         # If our parser is smart, maybe no diff? 
         # But likely it sees a diff in type or default value.
@@ -181,7 +183,7 @@ class TestBlackboxCLI(unittest.TestCase):
         with open(f2, 'w') as f:
             f.write("CREATE TABLE MYTABLE (ID INT);")
             
-        result = self.run_dac(f"compare {f1} {f2} --dialect snowflake --plan")
+        result = self.run_dac(f"compare --source {f1} --target {f2} --dialect snowflake --plan")
         self.assertEqual(result.returncode, 0)
         # Should be no changes if parser upper-cases everything
         self.assertIn("No changes detected", result.stdout)

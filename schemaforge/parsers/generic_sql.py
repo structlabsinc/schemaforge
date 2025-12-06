@@ -29,6 +29,13 @@ class GenericSQLParser(BaseParser):
                     self._extract_create_index(statement, schema)
                 elif len(token_list) > 2 and token_list[1].value.upper() == 'UNIQUE' and token_list[2].value.upper() == 'INDEX':
                      self._extract_create_index(statement, schema, is_unique=True)
+            
+            elif stmt_type == 'UNKNOWN':
+                 # Handle COMMENT ON (sqlparse might return UNKNOWN or just handle keywords)
+                 # Actually sqlparse often treats COMMENT ON as valid statement but maybe not a type it recognizes easily
+                 first_token = statement.token_first()
+                 if first_token and first_token.value.upper() == 'COMMENT':
+                     self._process_comment(statement, schema)
                      
         return schema
 
@@ -439,18 +446,49 @@ class GenericSQLParser(BaseParser):
             if len(filtered_tokens) > 2 and not isinstance(filtered_tokens[2], sqlparse.sql.Parenthesis):
                  second_token_val = filtered_tokens[2].value.upper()
                  combined = data_type.upper() + " " + second_token_val
-                 
                  if data_type.upper() == 'CHARACTER' and second_token_val.startswith('VARYING'):
-                     data_type = data_type + " " + filtered_tokens[2].value
+                     data_type = 'VARCHAR'
                      next_idx = 3
-                 elif data_type.upper() == 'DOUBLE' and second_token_val.startswith('PRECISION'):
-                     data_type = data_type + " " + filtered_tokens[2].value
+                 elif data_type.upper() == 'DOUBLE' and second_token_val == 'PRECISION':
+                     data_type = 'DOUBLE PRECISION'
                      next_idx = 3
+                 # ARRAY types (e.g. TEXT [])
+                 elif second_token_val == '[]' or second_token_val == 'ARRAY':
+                     data_type = data_type + '[]'
+                     next_idx = 3
+
+            # Check for qualified types (e.g. schema.type)
+            while next_idx < len(filtered_tokens):
+                curr = filtered_tokens[next_idx]
+                if curr.value == '.':
+                    data_type += '.'
+                    next_idx += 1
+                    if next_idx < len(filtered_tokens):
+                         data_type += filtered_tokens[next_idx].value
+                         next_idx += 1
+                else:
+                    break
+
+            # Check for ARRAY keyword or [] suffix attached or tokenized
+            # sqlparse might produce "TEXT" then "[" "]"
+            if next_idx < len(filtered_tokens) and filtered_tokens[next_idx].value == '[':
+                 if next_idx + 1 < len(filtered_tokens) and filtered_tokens[next_idx+1].value == ']':
+                      data_type += '[]'
+                      next_idx += 2
             
+            # Handle type parameters like VARCHAR(100)
             if len(filtered_tokens) > next_idx and isinstance(filtered_tokens[next_idx], sqlparse.sql.Parenthesis):
                  data_type += filtered_tokens[next_idx].value
-                 
-            column = Column(name=self._clean_name(col_name), data_type=self._clean_type(data_type))
+                 next_idx += 1 # Increment next_idx after consuming parenthesis
+            
+            # Use raw data type for Arrays if detected, to avoid cleaning TEXT[] -> VARCHAR
+            # Use raw data type for Arrays if detected, to avoid cleaning TEXT[] -> VARCHAR
+            if '[]' in data_type:
+                final_data_type = data_type.upper()
+            else:
+                final_data_type = self._clean_type(data_type)
+            
+            column = Column(name=self._clean_name(col_name), data_type=final_data_type)
             
             full_def = " ".join([t.value for t in tokens]).upper()
             # Normalize whitespace to handle "PRIMARY  KEY"
@@ -469,23 +507,23 @@ class GenericSQLParser(BaseParser):
                 if val_upper == 'DEFAULT':
                     # Collect tokens until end or next constraint keyword
                     default_val_tokens = []
-                    next_idx = i + 1
-                    while next_idx < len(filtered_tokens):
-                        next_token = filtered_tokens[next_idx]
+                    next_idx_default = i + 1 # Use a separate index for default value parsing
+                    while next_idx_default < len(filtered_tokens):
+                        next_token = filtered_tokens[next_idx_default]
                         next_val_upper = next_token.value.upper()
                         # Keywords that might terminate a DEFAULT clause
                         if next_val_upper in ('NOT', 'NULL', 'PRIMARY', 'KEY', 'UNIQUE', 'CHECK', 'REFERENCES', 'CONSTRAINT', 'GENERATED', 'AUTO_INCREMENT', 'COMMENT', 'COLLATE', 'WITH', 'MASKING'):
                             # Special handling for 'NOT NULL' and 'PRIMARY KEY' as they are multi-word
-                            if next_val_upper == 'NOT' and next_idx + 1 < len(filtered_tokens) and filtered_tokens[next_idx+1].value.upper() == 'NULL':
+                            if next_val_upper == 'NOT' and next_idx_default + 1 < len(filtered_tokens) and filtered_tokens[next_idx_default+1].value.upper() == 'NULL':
                                 break
-                            if next_val_upper == 'PRIMARY' and next_idx + 1 < len(filtered_tokens) and filtered_tokens[next_idx+1].value.upper() == 'KEY':
+                            if next_val_upper == 'PRIMARY' and next_idx_default + 1 < len(filtered_tokens) and filtered_tokens[next_idx_default+1].value.upper() == 'KEY':
                                 break
                             # For other single keywords, break
                             if next_val_upper in ('UNIQUE', 'CHECK', 'REFERENCES', 'CONSTRAINT', 'GENERATED', 'AUTO_INCREMENT', 'COMMENT', 'COLLATE', 'WITH', 'MASKING'):
                                 break
                         
                         default_val_tokens.append(next_token.value)
-                        next_idx += 1
+                        next_idx_default += 1
                     
                     if default_val_tokens:
                         column.default_value = " ".join(default_val_tokens)
@@ -544,7 +582,14 @@ class GenericSQLParser(BaseParser):
                 # Check for COMMENT
                 if val_upper == 'COMMENT':
                     if i + 1 < len(filtered_tokens):
-                        column.comment = filtered_tokens[i+1].value.strip("'")
+                        # Comments can be single quoted strings or dollar-quoted strings
+                        comment_token = filtered_tokens[i+1]
+                        if comment_token.ttype is sqlparse.tokens.String.Single:
+                            column.comment = comment_token.value.strip("'")
+                        elif comment_token.ttype is sqlparse.tokens.String.Dollar:
+                            column.comment = comment_token.value.strip("$$")
+                        else:
+                            column.comment = comment_token.value # Fallback for unquoted comments if any
                         
                 # Check for COLLATE
                 if val_upper == 'COLLATE':
@@ -566,10 +611,8 @@ class GenericSQLParser(BaseParser):
                              if i + 3 < len(filtered_tokens):
                                  column.masking_policy = filtered_tokens[i+3].value
 
-                # Check for IDENTITY / AUTOINCREMENT
                 if val_upper.startswith('IDENTITY') or val_upper.startswith('AUTOINCREMENT'):
                     column.is_identity = True
-                    # Consume optional (start, inc)
                     # Consume optional (start, inc)
                     if i + 1 < len(filtered_tokens) and isinstance(filtered_tokens[i+1], sqlparse.sql.Parenthesis):
                         # Parse start/inc
@@ -579,6 +622,15 @@ class GenericSQLParser(BaseParser):
                             column.identity_start = int(parts[0])
                         if len(parts) >= 2 and parts[1].isdigit():
                             column.identity_step = int(parts[1])
+
+                # Check for inline CHECK (expr)
+                if val_upper == 'CHECK':
+                    if i + 1 < len(filtered_tokens) and isinstance(filtered_tokens[i+1], sqlparse.sql.Parenthesis):
+                        expr = filtered_tokens[i+1].value[1:-1].strip()
+                        from schemaforge.models import CheckConstraint
+                        # We attribute this check to the table, but it's defined inline
+                        check_name = f"ck_{table.name}_{column.name}_{len(table.check_constraints)}"
+                        table.check_constraints.append(CheckConstraint(name=check_name, expression=expr))
 
             table.columns.append(column)
 
@@ -731,3 +783,92 @@ class GenericSQLParser(BaseParser):
             i += 1
             
         return "".join(result)
+
+    def _process_comment(self, statement, schema: Schema):
+        # COMMENT ON (TABLE|COLUMN|DATABASE|INDEX|CONSTRAINT) name IS 'comment'
+        tokens = [t for t in statement.tokens if not t.is_whitespace and not isinstance(t, sqlparse.sql.Comment)]
+        if len(tokens) < 6: return
+        
+        target_type = tokens[2].value.upper()
+        # Use .value to preserve schema qualification (e.g. titan_db_core.foo)
+        target_name = tokens[3].value
+        
+        # Determine comment text
+        # usually IS 'text'
+        comment_text = None
+        for i, t in enumerate(tokens):
+            if t.value.upper() == 'IS':
+                if i + 1 < len(tokens):
+                    comment_text = tokens[i+1].value.strip("'")
+                break
+                
+        if not comment_text: return
+        
+        target_name = self._clean_name(target_name)
+        
+        if target_type == 'TABLE':
+            table = schema.get_table(target_name)
+            if table:
+                table.comment = comment_text
+        elif target_type == 'DATABASE':
+            # Schema doesn't have a database comment field on root usually.
+            # But we can store it in custom objects as a "Database Property"?
+            # Or just ignore gracefully?
+            # Test expects "Comment" in output.
+            # We can use a CustomObject for DATABASE properties or add to Schema
+            from schemaforge.models import CustomObject
+            schema.custom_objects.append(CustomObject(obj_type='COMMENT', name=target_name, properties={'comment': comment_text}))
+        elif target_type == 'CONSTRAINT':
+            # Constraints might be on a table. But finding the constraint object requires searching all tables?
+            # Or assume schema.table.constraint? Usually just constraint_name on table_name.
+            # "COMMENT ON CONSTRAINT name ON table IS ..."
+            # My tokens check is simple. If tokens[4] == ON, tokens[5] == table.
+            table_name = None
+            con_name = target_name
+            if len(tokens) > 5 and tokens[4].value.upper() == 'ON':
+                 table_name = tokens[5].value
+            
+            if table_name:
+                 # Resolve table
+                 table = schema.get_table(table_name)
+                 if table:
+                     # Check all constraints
+                     for c in table.check_constraints:
+                         if c.name == con_name: c.comment = comment_text; break
+                     for c in table.exclusion_constraints:
+                         if c.name == con_name: c.comment = comment_text; break
+                     # Foreign Keys? Primary Key? Unique?
+                     # Models for FK/PK need comment field too? FK has it.
+                     for c in table.foreign_keys:
+                         if c.name == con_name: c.comment = comment_text; break
+                         
+        elif target_type == 'INDEX':
+             # Index name might be schema qualified
+             # Try exact match first
+             for table in schema.tables:
+                 for idx in table.indexes:
+                     if idx.name == target_name:
+                         idx.comment = comment_text
+                         return
+
+             # Try suffix match
+             parts = target_name.split('.')
+             idx_name = parts[-1]
+             # Search all tables for this index
+             for table in schema.tables:
+                 for idx in table.indexes:
+                     if idx.name == idx_name or idx.name.endswith(f".{idx_name}"):
+                         idx.comment = comment_text
+                         return
+        elif target_type == 'COLUMN':
+            # name format schema.table.col or table.col
+            parts = target_name.split('.')
+            if len(parts) >= 2:
+                col_name = parts[-1]
+                table_name = ".".join(parts[:-1]) # Handle schema.table correctly
+                table = schema.get_table(table_name)
+                if table:
+                    for col in table.columns:
+                        if col.name == col_name:
+                            col.comment = comment_text
+                            break

@@ -109,13 +109,13 @@ sf compare-livedb \
 | **Snowflake** | `TRANSIENT`, `CLUSTER BY`, `VARIANT`, `PIPE`, `TASK`, `STREAM` |
 | **Oracle** | `TABLESPACE`, `PARTITION BY`, `SEQUENCE`, `SYNONYM`, PL/SQL |
 | **DB2** | `IN tablespace`, `PARTITION BY`, `ALIAS`, Identity Columns |
-| **PostgreSQL**| `UNLOGGED`, `PARTITION BY`, `JSONB`, `GIN/GIST`, `MAT VIEW` |
+| **PostgreSQL**| `UNLOGGED`, `PARTITION BY`, `JSONB`, `GIN/GIST`, `MAT VIEW`, `RLS`, `GENERATED ALWAYS`, `EXCLUSION` |
 | **MySQL** | `PARTITION BY`, `FULLTEXT`, `VIEW`, `PROCEDURE` |
 | **SQLite** | `STRICT`, `WITHOUT ROWID`, `VIRTUAL TABLE`, `TRIGGER` |
 
 ## Reliability & Testing
 
-This tool is verified by a **Massive Blackbox Testing Suite** containing over **3,000 unique scenarios**.
+This tool is verified by a **Massive Verification Suite** containing over **23,000 unique scenarios**.
 *   **Adversarial Testing**: Validated against "God Mode" files containing invisible characters, mixed quoting, and extreme edge cases.
 *   **Zero Crashes**: 100% stability rate across all test suites.
 *   **Idempotency**: Guaranteed that applying a generated migration results in the target state.

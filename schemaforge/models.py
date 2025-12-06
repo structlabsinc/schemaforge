@@ -16,6 +16,11 @@ class Column:
     identity_start: Optional[int] = None
     identity_step: Optional[int] = None
     
+    # Postgres Specifics
+    is_generated: bool = False
+    generation_expression: Optional[str] = None
+    identity_cycle: bool = False
+    
     def __repr__(self):
         return f"Column(name='{self.name}', type='{self.data_type}')"
         
@@ -31,18 +36,38 @@ class Column:
             "masking_policy": self.masking_policy,
             "is_identity": self.is_identity,
             "identity_start": self.identity_start,
-            "identity_step": self.identity_step
+            "identity_step": self.identity_step,
+            "is_generated": self.is_generated,
+            "generation_expression": self.generation_expression,
+            "identity_cycle": self.identity_cycle
         }
 
 @dataclass
 class CheckConstraint:
     name: str
     expression: str
+    comment: Optional[str] = None
     
     def to_dict(self):
         return {
             "name": self.name,
-            "expression": self.expression
+            "expression": self.expression,
+            "comment": self.comment
+        }
+
+@dataclass
+class ExclusionConstraint:
+    name: str
+    elements: List[str] # e.g. ["account_id WITH =", "valid_range WITH &&"]
+    method: str = "gist"
+    comment: Optional[str] = None
+    
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "elements": self.elements,
+            "method": self.method,
+            "comment": self.comment
         }
 
 @dataclass
@@ -51,13 +76,21 @@ class ForeignKey:
     column_names: List[str]
     ref_table: str
     ref_column_names: List[str]
+    on_delete: Optional[str] = None
+    on_update: Optional[str] = None
+    comment: Optional[str] = None
+    is_deferrable: bool = False
     
     def to_dict(self):
         return {
             "name": self.name,
             "column_names": self.column_names,
             "ref_table": self.ref_table,
-            "ref_column_names": self.ref_column_names
+            "ref_column_names": self.ref_column_names,
+            "on_delete": self.on_delete,
+            "on_update": self.on_update,
+            "comment": self.comment,
+            "is_deferrable": self.is_deferrable
         }
 
 @dataclass
@@ -66,13 +99,19 @@ class Index:
     columns: List[str]
     is_unique: bool = False
     method: Optional[str] = None # btree, gin, gist, etc.
+    where_clause: Optional[str] = None # Partial index
+    include_columns: List[str] = field(default_factory=list) # INCLUDE clause
+    comment: Optional[str] = None
     
     def to_dict(self):
         return {
             "name": self.name,
             "columns": self.columns,
             "is_unique": self.is_unique,
-            "method": self.method
+            "method": self.method,
+            "where_clause": self.where_clause,
+            "include_columns": self.include_columns,
+            "comment": self.comment
         }
 
 @dataclass
@@ -99,6 +138,7 @@ class Table:
     indexes: List[Index] = field(default_factory=list)
     foreign_keys: List[ForeignKey] = field(default_factory=list)
     check_constraints: List[CheckConstraint] = field(default_factory=list)
+    exclusion_constraints: List[ExclusionConstraint] = field(default_factory=list)
     
     # Snowflake Specifics
     table_type: str = "Table" # e.g. "Table", "Dynamic Table", "Iceberg Table", "View", "Materialized View"
@@ -116,6 +156,10 @@ class Table:
     
     # Postgres Specifics
     is_unlogged: bool = False
+    inherits: Optional[str] = None
+    row_security: bool = False
+    partition_of: Optional[str] = None # If it's a partition
+    partition_bound: Optional[str] = None
     
     # SQLite Specifics
     is_strict: bool = False
@@ -134,6 +178,7 @@ class Table:
             "indexes": [i.to_dict() for i in self.indexes],
             "foreign_keys": [fk.to_dict() for fk in self.foreign_keys],
             "check_constraints": [c.to_dict() for c in self.check_constraints],
+            "exclusion_constraints": [c.to_dict() for c in self.exclusion_constraints],
             "table_type": self.table_type,
             "is_transient": self.is_transient,
             "cluster_by": self.cluster_by,
@@ -144,6 +189,10 @@ class Table:
             "tablespace": self.tablespace,
             "partition_by": self.partition_by,
             "is_unlogged": self.is_unlogged,
+            "inherits": self.inherits,
+            "row_security": self.row_security,
+            "partition_of": self.partition_of,
+            "partition_bound": self.partition_bound,
             "is_strict": self.is_strict,
             "without_rowid": self.without_rowid
         }
@@ -152,6 +201,9 @@ class Table:
 class Schema:
     tables: List[Table] = field(default_factory=list)
     custom_objects: List[CustomObject] = field(default_factory=list)
+    policies: List[CustomObject] = field(default_factory=list) # Using CustomObject for now for simplicity or could make specialized
+    domains: List[CustomObject] = field(default_factory=list)
+    types: List[CustomObject] = field(default_factory=list)
     
     def get_table(self, name: str) -> Optional[Table]:
         for table in self.tables:
@@ -162,5 +214,8 @@ class Schema:
     def to_dict(self):
         return {
             "tables": [t.to_dict() for t in self.tables],
-            "custom_objects": [o.to_dict() for o in self.custom_objects]
+            "custom_objects": [o.to_dict() for o in self.custom_objects],
+            "policies": [o.to_dict() for o in self.policies],
+            "domains": [o.to_dict() for o in self.domains],
+            "types": [o.to_dict() for o in self.types]
         }

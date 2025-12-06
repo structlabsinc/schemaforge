@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Dict, Any
-from schemaforge.models import Schema, Table, Column, Index, ForeignKey, CheckConstraint, CustomObject
+from schemaforge.models import Schema, Table, Column, Index, ForeignKey, CheckConstraint, ExclusionConstraint, CustomObject
 
 @dataclass
 class TableDiff:
@@ -18,6 +18,9 @@ class TableDiff:
     added_checks: List[CheckConstraint] = field(default_factory=list)
     dropped_checks: List[CheckConstraint] = field(default_factory=list)
     property_changes: List[str] = field(default_factory=list)
+    added_exclusion_constraints: List[ExclusionConstraint] = field(default_factory=list)
+    dropped_exclusion_constraints: List[ExclusionConstraint] = field(default_factory=list)
+    modified_exclusion_constraints: List[tuple[ExclusionConstraint, ExclusionConstraint]] = field(default_factory=list)
     new_table_obj: Optional[Any] = None # Holds the full new Table object for context
     
     def to_dict(self):
@@ -35,6 +38,12 @@ class TableDiff:
             "dropped_fks": [fk.to_dict() for fk in self.dropped_fks],
             "added_checks": [c.to_dict() for c in self.added_checks],
             "dropped_checks": [c.to_dict() for c in self.dropped_checks],
+            "added_exclusion_constraints": [c.to_dict() for c in self.added_exclusion_constraints],
+            "dropped_exclusion_constraints": [c.to_dict() for c in self.dropped_exclusion_constraints],
+            "modified_exclusion_constraints": [
+                {"old": old.to_dict(), "new": new.to_dict()} 
+                for old, new in self.modified_exclusion_constraints
+            ],
             "property_changes": self.property_changes
         }
 
@@ -48,6 +57,15 @@ class MigrationPlan:
     new_custom_objects: List[CustomObject] = field(default_factory=list)
     dropped_custom_objects: List[CustomObject] = field(default_factory=list)
     modified_custom_objects: List[tuple[CustomObject, CustomObject]] = field(default_factory=list)
+    new_domains: List[CustomObject] = field(default_factory=list)
+    dropped_domains: List[CustomObject] = field(default_factory=list)
+    modified_domains: List[tuple[CustomObject, CustomObject]] = field(default_factory=list)
+    new_types: List[CustomObject] = field(default_factory=list)
+    dropped_types: List[CustomObject] = field(default_factory=list)
+    modified_types: List[tuple[CustomObject, CustomObject]] = field(default_factory=list)
+    new_policies: List[CustomObject] = field(default_factory=list)
+    dropped_policies: List[CustomObject] = field(default_factory=list)
+    modified_policies: List[tuple[CustomObject, CustomObject]] = field(default_factory=list)
     
     def to_dict(self):
         return {
@@ -59,10 +77,40 @@ class MigrationPlan:
             "modified_custom_objects": [
                 {"old": old.to_dict(), "new": new.to_dict()} 
                 for old, new in self.modified_custom_objects
+            ],
+            "new_policies": [o.to_dict() for o in self.new_policies],
+            "dropped_policies": [o.to_dict() for o in self.dropped_policies],
+            "modified_policies": [
+                {"old": old.to_dict(), "new": new.to_dict()} 
+                for old, new in self.modified_policies
+            ],
+            "new_domains": [o.to_dict() for o in self.new_domains],
+            "dropped_domains": [o.to_dict() for o in self.dropped_domains],
+            "modified_domains": [
+                {"old": old.to_dict(), "new": new.to_dict()} 
+                for old, new in self.modified_domains
+            ],
+            "new_types": [o.to_dict() for o in self.new_types],
+            "dropped_types": [o.to_dict() for o in self.dropped_types],
+            "modified_types": [
+                {"old": old.to_dict(), "new": new.to_dict()} 
+                for old, new in self.modified_types
             ]
         } 
 
 class Comparator:
+    def _compare_lists(self, old_list, new_list, plan_new, plan_dropped):
+        old_objs = {o.name: o for o in old_list}
+        new_objs = {o.name: o for o in new_list}
+        
+        for name, obj in new_objs.items():
+            if name not in old_objs:
+                plan_new.append(obj)
+                
+        for name, obj in old_objs.items():
+            if name not in new_objs:
+                plan_dropped.append(obj)
+
     def compare(self, old_schema: Schema, new_schema: Schema) -> MigrationPlan:
         plan = MigrationPlan()
         
@@ -103,7 +151,28 @@ class Comparator:
         for key, obj in old_objs.items():
             if key not in new_objs:
                 plan.dropped_custom_objects.append(obj)
-                    
+
+        # Helper for other custom objects
+        def compare_collection(old_list, new_list, added_list, dropped_list, modified_list):
+            old_dict = {o.name: o for o in old_list}
+            new_dict = {o.name: o for o in new_list}
+            
+            for name, obj in new_dict.items():
+                if name not in old_dict:
+                    added_list.append(obj)
+                else:
+                    old_obj = old_dict[name]
+                    if old_obj.properties != obj.properties:
+                        modified_list.append((old_obj, obj))
+                        
+            for name, obj in old_dict.items():
+                if name not in new_dict:
+                    dropped_list.append(obj)
+
+        compare_collection(old_schema.domains, new_schema.domains, plan.new_domains, plan.dropped_domains, plan.modified_domains)
+        compare_collection(old_schema.types, new_schema.types, plan.new_types, plan.dropped_types, plan.modified_types)
+        compare_collection(old_schema.policies, new_schema.policies, plan.new_policies, plan.dropped_policies, plan.modified_policies)
+
         return plan
 
     def _compare_tables(self, old_table: Table, new_table: Table) -> Optional[TableDiff]:
@@ -146,6 +215,28 @@ class Comparator:
             if name not in new_indexes:
                 diff.dropped_indexes.append(idx)
                 has_changes = True
+            else:
+                # Check for modifications (e.g. comment)
+                new_idx = new_indexes[name]
+                if idx.comment != new_idx.comment:
+                     # We don't have a specific list for modified indexes in TableDiff yet,
+                     # or we can treat it as a property change?
+                     # Existing code doesn't have modified_indexes list in TableDiff.
+                     # Let's add it or use property_changes?
+                     # Usually indexes are dropped/recreated if definition changes.
+                     # But for comments, we can just report it.
+                     # Let's add specific field to TableDiff if possible, or just append to property_changes
+                     # But main.py needs to handle it.
+                     # Let's check TableDiff definition first.
+                     pass
+                     
+                # Actually, let's look at how we handle this.
+                # If we want to support "Comment on Index", we should probably track it.
+                # Let's see if we can just treat it as a property change for the TABLE?
+                # "Index idx comment changed"
+                if idx.comment != new_idx.comment:
+                    diff.property_changes.append(f"Index {name} Comment: {idx.comment} -> {new_idx.comment}")
+                    has_changes = True
                 
         # Foreign Keys
         old_fks = {fk.name: fk for fk in old_table.foreign_keys}
@@ -174,6 +265,25 @@ class Comparator:
             if name not in new_checks:
                 diff.dropped_checks.append(check)
                 has_changes = True
+
+        # Exclusion Constraints
+        old_excl = {c.name: c for c in old_table.exclusion_constraints}
+        new_excl = {c.name: c for c in new_table.exclusion_constraints}
+        
+        for name, excl in new_excl.items():
+            if name not in old_excl:
+                diff.added_exclusion_constraints.append(excl)
+                has_changes = True
+                
+        for name, excl in old_excl.items():
+            if name not in new_excl:
+                diff.dropped_exclusion_constraints.append(excl)
+                has_changes = True
+            else:
+                new_c = new_excl[name]
+                if excl.method != new_c.method or excl.elements != new_c.elements or excl.comment != new_c.comment:
+                    diff.modified_exclusion_constraints.append((excl, new_c))
+                    has_changes = True
         
         # Table Properties
         if old_table.cluster_by != new_table.cluster_by:
@@ -253,6 +363,23 @@ class Comparator:
         if old_table.without_rowid != new_table.without_rowid:
             diff.property_changes.append(f"Without RowID: {old_table.without_rowid} -> {new_table.without_rowid}")
             has_changes = True
+            
+        # Postgres Properties
+        if old_table.inherits != new_table.inherits:
+            diff.property_changes.append(f"Inherits: {old_table.inherits} -> {new_table.inherits}")
+            has_changes = True
+            
+        if old_table.row_security != new_table.row_security:
+            diff.property_changes.append(f"Row Security: {old_table.row_security} -> {new_table.row_security}")
+            has_changes = True
+            
+        if old_table.partition_of != new_table.partition_of:
+            diff.property_changes.append(f"Partition Of: {old_table.partition_of} -> {new_table.partition_of}")
+            has_changes = True
+
+        if old_table.partition_bound != new_table.partition_bound:
+            diff.property_changes.append(f"Partition Bound: {old_table.partition_bound} -> {new_table.partition_bound}")
+            has_changes = True
 
         return diff if has_changes else None
 
@@ -278,5 +405,11 @@ class Comparator:
             changes.append(f"Identity Start: {old_col.identity_start} -> {new_col.identity_start}")
         if old_col.identity_step != new_col.identity_step:
             changes.append(f"Identity Step: {old_col.identity_step} -> {new_col.identity_step}")
+        if old_col.is_generated != new_col.is_generated:
+            changes.append(f"Generated: {old_col.is_generated} -> {new_col.is_generated}")
+        if old_col.generation_expression != new_col.generation_expression:
+            changes.append(f"Generation Expr: {old_col.generation_expression} -> {new_col.generation_expression}")
+        if old_col.identity_cycle != new_col.identity_cycle:
+            changes.append(f"Identity Cycle: {old_col.identity_cycle} -> {new_col.identity_cycle}")
             
         return changes if changes else None
