@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2025-12-06
+### Fixed
+- **Build**: Fixed "vUnknown" version display in compiled builds by switching to module-based versioning.
+
+## [1.2.1] - 2025-12-06
+### Fixed
+- **Quoting**: Fixed identifier quoting for special characters (e.g., `tbl🚀`, `)_col`, `user-name`) across all dialects.
+- **Generators**: Updated Postgres, MySQL, Snowflake, Oracle, DB2, and SQLite generators to enforce dialect-specific identifier quoting.
+
+## [1.2.0] - 2025-12-06
+### Added
+- **Advanced Postgres**: Added support for 100+ new scenarios including Pattern Matching, Partitioning, RLS, Generated Columns, Exclusion Constraints, and more.
+- **Global Regression**: Validated against comprehensive test suites (Blackbox, Adversarial, Postgres 100, Snowflake 100).
+- **Versioning**: Bumped major version to reflect feature completeness.
+
 ## [1.1.2] - 2025-12-01
 ### Fixed
 - **Composite Primary Keys**: Fixed migration generation to correctly handle `ALTER TABLE ... ADD PRIMARY KEY (col1, col2)` for composite keys.
