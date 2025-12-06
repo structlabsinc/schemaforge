@@ -1,6 +1,9 @@
 from schemaforge.generators.generic import GenericGenerator
 
 class SnowflakeGenerator(GenericGenerator):
+    def quote_ident(self, ident: str) -> str:
+        return f'"{ident}"'
+
     def generate_migration(self, plan):
         sql = []
         
@@ -41,21 +44,21 @@ class SnowflakeGenerator(GenericGenerator):
             
         # Dropped Tables
         for table in plan.dropped_tables:
-            sql.append(f"DROP TABLE {table.name};")
+            sql.append(f"DROP TABLE {self.quote_ident(table.name)};")
             
         # Modified Tables
         for diff in plan.modified_tables:
             # Add Columns
             for col in diff.added_columns:
-                sql.append(f"ALTER TABLE {diff.table_name} ADD COLUMN {self._col_def(col)};")
+                sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD COLUMN {self._col_def(col)};")
                 
             # Drop Columns
             for col in diff.dropped_columns:
-                sql.append(f"ALTER TABLE {diff.table_name} DROP COLUMN {col.name};")
+                sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP COLUMN {self.quote_ident(col.name)};")
                 
             # Modify Columns
             for old, new in diff.modified_columns:
-                sql.append(f"ALTER TABLE {diff.table_name} MODIFY COLUMN {self._col_def(new)};")
+                sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} MODIFY COLUMN {self._col_def(new)};")
                 
             # Snowflake Specific Alterations
             # We need to check if table properties changed. 
@@ -87,15 +90,16 @@ class SnowflakeGenerator(GenericGenerator):
                 # Safe approach: Try to drop if we suspect there was one, then add new one.
                 # For now, we will just generate the ADD/DROP based on current state.
                 
-                sql.append(f"ALTER TABLE {diff.table_name} DROP PRIMARY KEY;")
-                
-                if diff.new_table_obj:
-                    pk_cols = [c.name for c in diff.new_table_obj.columns if c.is_primary_key]
-                    if pk_cols:
-                        pk_def = f"PRIMARY KEY ({', '.join(pk_cols)})"
-                        if diff.new_table_obj.primary_key_name:
-                            pk_def = f"CONSTRAINT {diff.new_table_obj.primary_key_name} {pk_def}"
-                        sql.append(f"ALTER TABLE {diff.table_name} ADD {pk_def};")
+                if pk_changed:
+                    sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP PRIMARY KEY;")
+                    
+                    if diff.new_table_obj:
+                        pk_cols = [c.name for c in diff.new_table_obj.columns if c.is_primary_key]
+                        if pk_cols:
+                            pk_def = f"PRIMARY KEY ({', '.join([self.quote_ident(c) for c in pk_cols])})"
+                            if diff.new_table_obj.primary_key_name:
+                                pk_def = f"CONSTRAINT {self.quote_ident(diff.new_table_obj.primary_key_name)} {pk_def}"
+                            sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD {pk_def};")
 
         return "\n".join(sql)
 
@@ -103,16 +107,16 @@ class SnowflakeGenerator(GenericGenerator):
         stmt = "CREATE "
         if table.is_transient:
             stmt += "TRANSIENT "
-        stmt += f"TABLE {table.name} (\n"
+        stmt += f"TABLE {self.quote_ident(table.name)} (\n"
         
         cols = [f"  {self._col_def(c)}" for c in table.columns]
         
         # Primary Keys
         pk_cols = [c.name for c in table.columns if c.is_primary_key]
         if pk_cols:
-            pk_def = f"PRIMARY KEY ({', '.join(pk_cols)})"
+            pk_def = f"PRIMARY KEY ({', '.join([self.quote_ident(c) for c in pk_cols])})"
             if table.primary_key_name:
-                pk_def = f"CONSTRAINT {table.primary_key_name} {pk_def}"
+                pk_def = f"CONSTRAINT {self.quote_ident(table.primary_key_name)} {pk_def}"
             cols.append(f"  {pk_def}")
             
         stmt += ",\n".join(cols)
@@ -120,7 +124,7 @@ class SnowflakeGenerator(GenericGenerator):
         
         # Properties
         if table.cluster_by:
-            stmt += f"\nCLUSTER BY ({', '.join(table.cluster_by)})"
+            stmt += f"\nCLUSTER BY ({', '.join([self.quote_ident(c) for c in table.cluster_by])})"
             
         if table.retention_days is not None:
             stmt += f"\nDATA_RETENTION_TIME_IN_DAYS = {table.retention_days}"
@@ -132,7 +136,7 @@ class SnowflakeGenerator(GenericGenerator):
         return stmt
 
     def _col_def(self, col):
-        base = f"{col.name} {col.data_type}"
+        base = f"{self.quote_ident(col.name)} {col.data_type}"
         if not col.is_nullable:
             base += " NOT NULL"
         if col.is_identity:

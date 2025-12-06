@@ -3,6 +3,9 @@ from schemaforge.generators.generic import GenericGenerator
 from schemaforge.generators.generic import GenericGenerator
 
 class OracleGenerator(GenericGenerator):
+    def quote_ident(self, ident: str) -> str:
+        return f'"{ident}"'
+
     def generate_migration(self, plan):
         sql = []
         
@@ -39,29 +42,29 @@ class OracleGenerator(GenericGenerator):
             sql.append(self.create_table_sql(table))
             
         for table in plan.dropped_tables:
-            sql.append(f"DROP TABLE {table.name};")
+            sql.append(f"DROP TABLE {self.quote_ident(table.name)};")
             
         for diff in plan.modified_tables:
             for col in diff.added_columns:
-                sql.append(f"ALTER TABLE {diff.table_name} ADD {self._col_def(col)};")
+                sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD {self._col_def(col)};")
                 
             for col in diff.dropped_columns:
-                sql.append(f"ALTER TABLE {diff.table_name} DROP COLUMN {col.name};")
+                sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP COLUMN {self.quote_ident(col.name)};")
                 
             for old_col, new_col in diff.modified_columns:
                 # Oracle Modify: MODIFY (col type ...)
                 if old_col.data_type != new_col.data_type or old_col.is_nullable != new_col.is_nullable:
-                    sql.append(f"ALTER TABLE {diff.table_name} MODIFY {self._col_def(new_col)};")
+                    sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} MODIFY {self._col_def(new_col)};")
 
         return "\n".join(sql)
 
     def create_table_sql(self, table):
-        stmt = f"CREATE TABLE {table.name} (\n"
+        stmt = f"CREATE TABLE {self.quote_ident(table.name)} (\n"
         cols = [f"  {self._col_def(c)}" for c in table.columns]
         
         pk_cols = [c.name for c in table.columns if c.is_primary_key]
         if pk_cols:
-            cols.append(f"  PRIMARY KEY ({', '.join(pk_cols)})")
+            cols.append(f"  PRIMARY KEY ({', '.join([self.quote_ident(c) for c in pk_cols])})")
             
         stmt += ",\n".join(cols)
         stmt += "\n)"
@@ -76,7 +79,7 @@ class OracleGenerator(GenericGenerator):
         return stmt
 
     def _col_def(self, col):
-        base = f"{col.name} {col.data_type}"
+        base = f"{self.quote_ident(col.name)} {col.data_type}"
         if col.default_value:
             base += f" DEFAULT {col.default_value}"
         if not col.is_nullable:

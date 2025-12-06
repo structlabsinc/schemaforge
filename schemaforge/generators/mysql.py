@@ -3,6 +3,9 @@ from schemaforge.generators.generic import GenericGenerator
 from schemaforge.generators.generic import GenericGenerator
 
 class MySQLGenerator(GenericGenerator):
+    def quote_ident(self, ident: str) -> str:
+        return f"`{ident}`"
+
     def generate_migration(self, plan):
         sql = []
         
@@ -34,15 +37,15 @@ class MySQLGenerator(GenericGenerator):
         for diff in plan.modified_tables:
             # MySQL ALTER TABLE
             for col in diff.added_columns:
-                sql.append(f"ALTER TABLE {diff.table_name} ADD COLUMN {self._col_def(col)};")
+                sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD COLUMN {self._col_def(col)};")
                 
             for col in diff.dropped_columns:
-                sql.append(f"ALTER TABLE {diff.table_name} DROP COLUMN {col.name};")
+                sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP COLUMN {self.quote_ident(col.name)};")
                 
             for old_col, new_col in diff.modified_columns:
                 # Type change or Nullability
                 # MySQL MODIFY COLUMN covers both
-                sql.append(f"ALTER TABLE {diff.table_name} MODIFY COLUMN {self._col_def(new_col)};")
+                sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} MODIFY COLUMN {self._col_def(new_col)};")
 
             # Indexes
             for idx in diff.added_indexes:
@@ -54,7 +57,7 @@ class MySQLGenerator(GenericGenerator):
         return "\n".join(sql)
 
     def create_table_sql(self, table):
-        stmt = f"CREATE TABLE {table.name} (\n"
+        stmt = f"CREATE TABLE {self.quote_ident(table.name)} (\n"
         cols = [f"  {self._col_def(c)}" for c in table.columns]
         
         pk_cols = [c.name for c in table.columns if c.is_primary_key]
@@ -77,11 +80,11 @@ class MySQLGenerator(GenericGenerator):
         elif index.method == 'fulltext':
             stmt += "FULLTEXT "
             
-        stmt += f"INDEX {index.name} ON {table_name} ({', '.join(index.columns)});"
+        stmt += f"INDEX {self.quote_ident(index.name)} ON {self.quote_ident(table_name)} ({', '.join([self.quote_ident(c) for c in index.columns])});"
         return stmt
 
     def _col_def(self, col):
-        base = f"{col.name} {col.data_type}"
+        base = f"{self.quote_ident(col.name)} {col.data_type}"
         if not col.is_nullable:
             base += " NOT NULL"
         if col.default_value:

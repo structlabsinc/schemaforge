@@ -1,6 +1,9 @@
 from schemaforge.generators.generic import GenericGenerator
 
 class PostgresGenerator(GenericGenerator):
+    def quote_ident(self, ident: str) -> str:
+        return f'"{ident}"'
+
     def generate_migration(self, plan):
         sql = []
         
@@ -32,25 +35,25 @@ class PostgresGenerator(GenericGenerator):
         for diff in plan.modified_tables:
             # Postgres ALTER TABLE
             for col in diff.added_columns:
-                sql.append(f"ALTER TABLE {diff.table_name} ADD COLUMN {self._col_def(col)};")
+                sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD COLUMN {self._col_def(col)};")
                 
             for col in diff.dropped_columns:
-                sql.append(f"ALTER TABLE {diff.table_name} DROP COLUMN {col.name};")
+                sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP COLUMN {self.quote_ident(col.name)};")
                 
             for old_col, new_col in diff.modified_columns:
                 # Type change
                 if old_col.data_type != new_col.data_type:
-                    sql.append(f"ALTER TABLE {diff.table_name} ALTER COLUMN {new_col.name} TYPE {new_col.data_type};")
+                    sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ALTER COLUMN {self.quote_ident(new_col.name)} TYPE {new_col.data_type};")
                 # Nullability
                 if old_col.is_nullable != new_col.is_nullable:
                     action = "DROP NOT NULL" if new_col.is_nullable else "SET NOT NULL"
-                    sql.append(f"ALTER TABLE {diff.table_name} ALTER COLUMN {new_col.name} {action};")
+                    sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ALTER COLUMN {self.quote_ident(new_col.name)} {action};")
                 # Default
                 if old_col.default_value != new_col.default_value:
                     if new_col.default_value:
-                        sql.append(f"ALTER TABLE {diff.table_name} ALTER COLUMN {new_col.name} SET DEFAULT {new_col.default_value};")
+                        sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ALTER COLUMN {self.quote_ident(new_col.name)} SET DEFAULT {new_col.default_value};")
                     else:
-                        sql.append(f"ALTER TABLE {diff.table_name} ALTER COLUMN {new_col.name} DROP DEFAULT;")
+                        sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ALTER COLUMN {self.quote_ident(new_col.name)} DROP DEFAULT;")
 
             # Indexes
             for idx in diff.added_indexes:
@@ -65,7 +68,7 @@ class PostgresGenerator(GenericGenerator):
         stmt = "CREATE "
         if table.is_unlogged:
             stmt += "UNLOGGED "
-        stmt += f"TABLE {table.name} (\n"
+        stmt += f"TABLE {self.quote_ident(table.name)} (\n"
         
         cols = [f"  {self._col_def(c)}" for c in table.columns]
         
@@ -87,14 +90,14 @@ class PostgresGenerator(GenericGenerator):
         stmt = "CREATE "
         if index.is_unique:
             stmt += "UNIQUE "
-        stmt += f"INDEX {index.name} ON {table_name} "
+        stmt += f"INDEX {self.quote_ident(index.name)} ON {self.quote_ident(table_name)} "
         if index.method and index.method != 'btree':
             stmt += f"USING {index.method} "
         stmt += f"({', '.join(index.columns)});"
         return stmt
 
     def _col_def(self, col):
-        base = f"{col.name} {col.data_type}"
+        base = f"{self.quote_ident(col.name)} {col.data_type}"
         if not col.is_nullable:
             base += " NOT NULL"
         if col.default_value:

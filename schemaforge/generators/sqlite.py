@@ -3,6 +3,9 @@ from schemaforge.generators.generic import GenericGenerator
 from schemaforge.generators.generic import GenericGenerator
 
 class SQLiteGenerator(GenericGenerator):
+    def quote_ident(self, ident: str) -> str:
+        return f'"{ident}"'
+
     def generate_migration(self, plan):
         sql = []
         
@@ -29,7 +32,7 @@ class SQLiteGenerator(GenericGenerator):
                 sql.append(self.create_index_sql(idx, table.name))
             
         for table in plan.dropped_tables:
-            sql.append(f"DROP TABLE {table.name};")
+            sql.append(f"DROP TABLE {self.quote_ident(table.name)};")
             
         for diff in plan.modified_tables:
             # SQLite has limited ALTER TABLE support.
@@ -40,7 +43,7 @@ class SQLiteGenerator(GenericGenerator):
             # We will just emit comments for unsupported ops or try best effort.
             
             for col in diff.added_columns:
-                sql.append(f"ALTER TABLE {diff.table_name} ADD COLUMN {self._col_def(col)};")
+                sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD COLUMN {self._col_def(col)};")
                 
             for col in diff.dropped_columns:
                 sql.append(f"-- WARNING: SQLite does not support DROP COLUMN directly. Table {diff.table_name} needs recreation to drop {col.name}.")
@@ -53,17 +56,17 @@ class SQLiteGenerator(GenericGenerator):
                 sql.append(self.create_index_sql(idx, diff.table_name))
                 
             for idx in diff.dropped_indexes:
-                sql.append(f"DROP INDEX {idx.name};")
+                sql.append(f"DROP INDEX {self.quote_ident(idx.name)};")
 
         return "\n".join(sql)
 
     def create_table_sql(self, table):
-        stmt = f"CREATE TABLE {table.name} (\n"
+        stmt = f"CREATE TABLE {self.quote_ident(table.name)} (\n"
         cols = [f"  {self._col_def(c)}" for c in table.columns]
         
         pk_cols = [c.name for c in table.columns if c.is_primary_key]
         if pk_cols:
-            cols.append(f"  PRIMARY KEY ({', '.join(pk_cols)})")
+            cols.append(f"  PRIMARY KEY ({', '.join([self.quote_ident(c) for c in pk_cols])})")
             
         stmt += ",\n".join(cols)
         stmt += "\n)"
@@ -81,11 +84,11 @@ class SQLiteGenerator(GenericGenerator):
         if index.is_unique:
             stmt += "UNIQUE "
             
-        stmt += f"INDEX {index.name} ON {table_name} ({', '.join(index.columns)});"
+        stmt += f"INDEX {self.quote_ident(index.name)} ON {self.quote_ident(table_name)} ({', '.join([self.quote_ident(c) for c in index.columns])});"
         return stmt
 
     def _col_def(self, col):
-        base = f"{col.name} {col.data_type}"
+        base = f"{self.quote_ident(col.name)} {col.data_type}"
         if not col.is_nullable:
             base += " NOT NULL"
         if col.default_value:
