@@ -87,23 +87,10 @@ def main():
     parser.add_argument('--no-color', action='store_true', help='Disable colored output')
     parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose output')
     # Version handling
-    version = 'Unknown'
     try:
-        import os
-        # Determine path to VERSION file
-        if getattr(sys, 'frozen', False):
-            # Running as compiled executable
-            base_path = sys._MEIPASS
-        else:
-            # Running as script
-            base_path = os.path.dirname(os.path.abspath(__file__))
-            
-        version_path = os.path.join(base_path, 'VERSION')
-        if os.path.exists(version_path):
-            with open(version_path, 'r') as f:
-                version = f.read().strip()
-    except Exception:
-        pass
+        from schemaforge.version import __version__ as version
+    except ImportError:
+        version = 'Unknown'
 
     parser.add_argument('--version', action='version', version=f'SchemaForge v{version}')
     
