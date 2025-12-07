@@ -109,7 +109,33 @@ For security reviews, custom modifications, or internal distributions.
 
 ---
 
-## 📖 Comprehensive Workflow Example
+## � CLI Command Reference
+
+The `sf` (or `schemaforge`) tool supports two primary commands: `compare` (File-to-File) and `compare-livedb` (DB-to-File).
+
+### Global Flags
+
+| Flag | Required | Description | Example |
+| :--- | :--- | :--- | :--- |
+| `--source` | **Yes** | Path to the SOURCE schema file (or Database Connection URL for `compare-livedb`). | `--source v1.sql` / `--source "postgresql://..."` |
+| `--target` | **Yes** | Path to the TARGET schema file (the desired state). | `--target v2.sql` |
+| `--dialect` | **Yes** | The SQL dialect of the files/database. Options: `db2`, `snowflake`, `postgres`, `oracle`, `mysql`, `sqlite`. | `--dialect db2` |
+| `--plan` | No | Outputs a human-readable execution plan to STDOUT. Essential for verification before applying changes. | `--plan` |
+| `--sql-out` | No | Path to save the generated SQL migration script. If omitted, no SQL is saved. | `--sql-out migration.sql` |
+| `--json-out` | No | Path to save a machine-readable JSON representation of the plan. Useful for CI/CD gates. | `--json-out plan.json` |
+| `--object-types` | No | **(LiveDB Only)** Comma-separated list of objects to inspect. Defaults to `table`. | `--object-types table,view,procedure` |
+| `--no-color` | No | Disables ANSI color codes in output. Use this for CI logs that don't support color. | `--no-color` |
+| `--verbose` / `-v` | No | Enables verbose logging (DEBUG level) depending on frequency. | `-v` |
+| `--version` | No | Prints the version number and exits. | `--version` |
+
+### Comparison Modes
+
+*   `sf compare`: Uses two local SQL files (or directories) to generate a diff. Fast and purely offline.
+*   `sf compare-livedb`: Connects to a running database (Source) and compares it against a local file/directory (Target). Requires network access to the DB.
+
+---
+
+## �📖 Comprehensive Workflow Example
 
 ### Scenario: The "Banking Compliance" Migration
 
