@@ -11,7 +11,7 @@ Designed for high-compliance environments (Banking, Healthcare, Government), Sch
 
 ---
 
-## 🚀 Why SchemaForge?
+## 🚀 Key Differentiators
 
 ### 1. Mainframe-Grade Precision (DB2 z/OS)
 We don't just speak "SQL"; we speak **Storage**.
@@ -20,93 +20,135 @@ We don't just speak "SQL"; we speak **Storage**.
 *   **Financial Accuracy**: Rigorously tested against `DECIMAL(31, 10)` and `DECFLOAT` for zero-rounding-error environments.
 
 ### 2. Battle-Hardened Reliability
-Most tools fail at the edges. We thrive there.
-*   **20,000+ Tests**: Our test suite covers "God Mode" scenarios including invisible characters, SQL injection-like patterns, and mixed-case quoting hell.
+*   **23,000+ Tests**: Our test suite covers "God Mode" scenarios including invisible characters, SQL injection-like patterns, and mixed-case quoting hell.
 *   **Idempotency Guarantee**: Running a generated migration against the target state results in **Zero Drift**.
 *   **Zero Regressions**: Every release passes a massive adversarial regression suite.
 
-### 3. Universal "God Mode" Dialect Support
-We support the deepest quirks of every major dialect.
+---
 
-| Dialect | Status | Key "God Mode" Features |
-| :--- | :--- | :--- |
-| **DB2 (z/OS)** | **Platinum** | `IN DATABASE.TS`, `AUX TABLE`, `PARTITION BY RANGE`, `STOGROUP` |
-| **Snowflake** | **Gold** | `DYNAMIC TABLE`, `ICEBERG`, `STREAM`, `PIPE`, `MASKING POLICY` |
-| **PostgreSQL** | **Gold** | `EXCLUSION`, `RLS`, `PARTITION BY`, `JSONB`, `GIN/GIST` |
-| **Oracle** | **Silver** | `TABLESPACE`, `SYNONYM`, `SEQUENCE` |
-| **MySQL** | **Silver** | `VIEW`, `PROCEDURE`, `FULLTEXT` |
-| **SQLite** | **Silver** | `STRICT`, `WITHOUT ROWID`, `VIRTUAL TABLE` |
+## 💎 Supported Dialects & Feature Matrix
+
+SchemaForge goes beyond basic `CREATE TABLE`. We support the "Salient Features" that make each database unique.
+
+| Feature Category | **DB2 (z/OS)** | **Snowflake** | **PostgreSQL** | **Oracle** | **MySQL** | **SQLite** |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Storage Model** | `TABLESPACE`, `DATABASE`, `STOGROUP`, `PRIQTY/SECQTY` | Micro-partitions (Auto) | `TABLESPACE` | `TABLESPACE`, `PCTFREE` | Engine (`InnoDB`) | File-based |
+| **Table Types** | Standard, `AUX TABLE` (LOBs), `HISTORY TABLE` | `DYNAMIC`, `ICEBERG`, `TRANSIENT`, `HYBRID`, `EVENT` | Standard, `UNLOGGED`, `PARTITIONED`, `FOREIGN` | Standard, `IOT` (Index Organized) | Standard | `STRICT`, `VIRTUAL` |
+| **Partitioning** | `PARTITION BY RANGE` (Table-Controlled) | `CLUSTER BY` (Micro-partitioning) | `PARTITION BY RANGE/LIST/HASH` | `PARTITION BY RANGE/HASH` | `PARTITION BY RANGE/HASH` | N/A |
+| **Temporal / Time** | **System-Period Temporal Tables** | Time Travel (Retention) | Extensions (Temporal Tables) | Flashback Query | N/A | N/A |
+| **Views** | Standard, Materialized (MQT) | Standard, `MATERIALIZED`, `SECURE` | Standard, `MATERIALIZED` | Standard, `MATERIALIZED` | Standard | Standard |
+| **Governance** | `AUDIT`, `CCSID` (Encoding) | `MASKING POLICIES`, `ROW ACCESS POLICIES`, `TAGS` | `ROW LEVEL SECURITY (RLS)`, `GRANT`/`REVOKE` | VPD (Virtual Private Database) | Grants | N/A |
+| **Procedural** | Stored Procs (managed as object) | `PROCEDURE`, `FUNCTION` (Java/Python/SQL) | `FUNCTION`, `PROCEDURE`, `TRIGGER` | `PACKAGE`, `PROCEDURE`, `SYNONYM` | `PROCEDURE`, `FUNCTION`, `TRIGGER` | `TRIGGER` |
+| **Constraints** | `PK`, `FK` (Enforced), `CHECK` | `PK`, `FK`, `UNIQUE` (Informational) | `PK`, `FK`, `CHECK`, `EXCLUSION` | `PK`, `FK`, `CHECK` | `PK`, `FK` | `PK`, `FK`, `CHECK` |
+| **Indices** | `CLUSTER`, `PARTITIONED`, `INCLUDE` | N/A (Auto-indexed) | `BTREE`, `GIN`, `GIST`, `PARTIAL` | `BITMAP`, `B-TREE`, `REVERSE` | `BTREE`, `FULLTEXT` | Standard |
 
 ---
 
-## 📦 Installation
+## � Comprehensive Workflow Example
 
-### Pre-built Binaries (Recommended)
-Download the standalone binary for your OS (Zero Dependencies).
-*   [Latest Release](https://github.com/structlabsinc/schemaforge/releases) (`sf-linux`, `sf-windows.exe`, `sf-macos`)
+### Scenario: The "Banking Compliance" Migration
 
-### Python Package
-```bash
-pip install schemaforge
-sf --version
-```
+You are migrating a legacy Mainframe Finance schema to a modern CI/CD pipeline while strictly maintaining regulatory compliance.
 
----
+#### 1. The Source: A Complex "God Object" (v1.sql)
+This file defines a temporal table with high-precision decimals and specific storage allocation.
 
-## 🛠 Usage
-
-### 1. The "What If?" Plan
-Preview changes without touching the database.
-```bash
-sf compare \
-    --source ./schema/v2.sql \
-    --target "postgres://user:pass@prod-db/app" \
-    --dialect postgres \
-    --plan
-```
-
-### 2. Live Database Introspection
-Generate a faithful representation of your production database.
-```bash
-sf compare-livedb \
-    --source "db2://user:pass@mainframe:50000/BLUDB" \
-    --target ./local_schema/ \
-    --dialect db2 \
-    --sql-out migration.sql
-```
-
-### 3. CI/CD Integration
-Generate machine-readable artifacts for your pipeline to enforce policies (e.g., "No destructive drops").
-```bash
-sf compare \
-    --source v1.sql --target v2.sql \
-    --dialect snowflake \
-    --plan --json-out plan.json --sql-out deploy.sql --silent
-```
-
----
-
-## 🔎 Deep Dive: DB2 z/OS Support
-
-SchemaForge v1.2.0 introduces groundbreaking support for IBM DB2 on z/OS.
-
-**Example: Temporal Table & Storage Groups**
-We parse this faithfully:
 ```sql
-CREATE TABLE "compliance_logs" (
-  "log_id" BIGINT GENERATED ALWAYS AS IDENTITY,
+-- v1.sql
+CREATE TABLE "transactions" (
+  "trans_id" BIGINT GENERATED ALWAYS AS IDENTITY,
+  "account_id" CHAR(10) NOT NULL,
+  "amount" DECIMAL(31, 10) NOT NULL, -- Financial Precision
   "sys_start" TIMESTAMP(12) NOT NULL GENERATED ALWAYS AS ROW BEGIN,
   "sys_end" TIMESTAMP(12) NOT NULL GENERATED ALWAYS AS ROW END,
-  "trans_id" TIMESTAMP(12) GENERATED ALWAYS AS TRANSACTION START ID,
-  PERIOD FOR SYSTEM_TIME (sys_start, sys_end)
-) IN DATABASE "db_audit"."ts_logs"
-  USING STOGROUP "sg_fast" PRIQTY 500 CCSID EBCDIC;
+  "trans_ts" TIMESTAMP(12) GENERATED ALWAYS AS TRANSACTION START ID,
+  CONSTRAINT "pk_trans" PRIMARY KEY ("trans_id", "sys_start"),
+  PERIOD FOR SYSTEM_TIME ("sys_start", "sys_end")
+) IN DATABASE "db_fin"."ts_trans"
+  USING STOGROUP "sg_fast"
+  PRIQTY 500 SECQTY 50
+  CCSID EBCDIC; -- Mainframe Encoding
+
+CREATE TABLE "transactions_hist" (
+  "trans_id" BIGINT NOT NULL,
+  "account_id" CHAR(10) NOT NULL,
+  "amount" DECIMAL(31, 10) NOT NULL,
+  "sys_start" TIMESTAMP(12) NOT NULL,
+  "sys_end" TIMESTAMP(12) NOT NULL,
+  "trans_ts" TIMESTAMP(12) NOT NULL
+) IN DATABASE "db_fin"."ts_hist";
+
+-- Link Temporal History
+ALTER TABLE "transactions" ADD VERSIONING USE HISTORY TABLE "transactions_hist";
+```
+
+#### 2. The Change: New Risk Requirement (v2.sql)
+The "Risk" department requires a new `risk_score` column and a supporting index.
+
+```sql
+-- v2.sql (Differences from v1)
+...
+  "amount" DECIMAL(31, 10) NOT NULL,
+  "risk_score" DECFLOAT(16), -- NEW COLUMN
+...
+
+-- NEW INDEX
+CREATE INDEX "idx_trans_risk" ON "transactions" ("account_id") 
+  INCLUDE ("risk_score", "amount") 
+  CLUSTER;
+```
+
+#### 3. The Execution: Generate Safe Migration
+Run SchemaForge to generate the diff.
+
+```bash
+sf compare --source v1.sql --target v2.sql --dialect db2 --plan --sql-out migration.sql
+```
+
+**Output Plan (Human Readable):**
+```text
+[PLAN] Migration Analysis for DB2
+------------------------------------------------------------
+[MODIFY] TABLE "transactions"
+  + ADD COLUMN "risk_score" DECFLOAT(16)
+  
+[CREATE] INDEX "idx_trans_risk" ON "transactions"
+  > Columns: ("account_id")
+  > Include: ("risk_score", "amount")
+  > Attributes: CLUSTER
+------------------------------------------------------------
+No destructive changes detected. Safe to apply.
+```
+
+**Output SQL (Machine Executable):**
+```sql
+-- migration.sql
+ALTER TABLE "transactions" ADD COLUMN "risk_score" DECFLOAT(16);
+
+CREATE INDEX "idx_trans_risk" ON "transactions" ("account_id") 
+  INCLUDE ("risk_score", "amount") 
+  CLUSTER;
+```
+
+---
+
+## 📦 Installation Options
+
+### 1. Pre-built Binaries (No Python Required)
+Download detailed binaries for your OS from the [Releases Page](https://github.com/structlabsinc/schemaforge/releases).
+*   `sf-linux-amd64`
+*   `sf-windows-amd64.exe`
+*   `sf-macos-amd64`
+
+### 2. Python Package
+```bash
+pip install schemaforge
 ```
 
 ---
 
 ## 🤝 Governance & License
 SchemaForge is open-source under the **Apache 2.0** license.
-Enterprise support and SLAs available for Fortune 500 deployments.
+Developed by **Struct Labs Inc.** for the Enterprise.
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
