@@ -28,7 +28,7 @@ def run_sf(source, target):
     except Exception as e:
         return str(e)
 
-def test_scenario(num, name, mod_func, expected_pattern):
+def run_scenario(num, name, mod_func, expected_pattern):
     print(f"{num:3d}. {name:55} ", end='', flush=True)
     reset_files()
     
@@ -164,7 +164,7 @@ if __name__ == '__main__':
     failed_scenarios = []
     
     for i, (name, mod, expect) in enumerate(scenarios, 1):
-        if test_scenario(i, name, mod, expect):
+        if run_scenario(i, name, mod, expect):
             passed += 1
         else:
             failed_scenarios.append((i, name))

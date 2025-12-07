@@ -52,18 +52,77 @@ class DB2Generator(GenericGenerator):
         return "\n".join(sql)
 
     def create_table_sql(self, table):
-        stmt = f"CREATE TABLE {self.quote_ident(table.name)} (\n"
-        cols = [f"  {self._col_def(c)}" for c in table.columns]
-        
-        pk_cols = [c.name for c in table.columns if c.is_primary_key]
-        if pk_cols:
-            cols.append(f"  PRIMARY KEY ({', '.join([self.quote_ident(c) for c in pk_cols])})")
+        kind = "TABLE"
+        if table.table_type == "AUX TABLE":
+            kind = "AUX TABLE"
             
-        stmt += ",\n".join(cols)
-        stmt += "\n)"
+        stmt = f"CREATE {kind} {self.quote_ident(table.name)}"
+        
+        # AUX TABLES don't have standard column defs
+        if table.table_type == "AUX TABLE":
+            # Add STORES clause
+             if 'aux_stores_table' in table.tags and 'aux_stores_col' in table.tags:
+                 stmt += f"\n STORES {self.quote_ident(table.tags['aux_stores_table'])} COLUMN {self.quote_ident(table.tags['aux_stores_col'])}"
+        else:
+            stmt += " (\n"
+            lines = [f"  {self._col_def(c)}" for c in table.columns]
+            
+            # PK
+            pk_cols = [c.name for c in table.columns if c.is_primary_key]
+            if pk_cols:
+                pk_sql = f"PRIMARY KEY ({', '.join([self.quote_ident(c) for c in pk_cols])})"
+                if table.primary_key_name:
+                    pk_sql = f"CONSTRAINT {self.quote_ident(table.primary_key_name)} {pk_sql}"
+                lines.append(f"  {pk_sql}")
+                
+            # PERIOD
+            if table.period_for:
+                lines.append(f"  PERIOD FOR {table.period_for}")
+                
+            # Foreign Keys
+            for fk in table.foreign_keys:
+                fk_sql = f"FOREIGN KEY ({', '.join([self.quote_ident(c) for c in fk.column_names])}) REFERENCES {self.quote_ident(fk.ref_table)} ({', '.join([self.quote_ident(c) for c in fk.ref_column_names])})"
+                if fk.on_delete:
+                    fk_sql += f" ON DELETE {fk.on_delete}"
+                if fk.on_update:
+                    fk_sql += f" ON UPDATE {fk.on_update}"
+                
+                if fk.name:
+                    fk_sql = f"CONSTRAINT {self.quote_ident(fk.name)} {fk_sql}"
+                lines.append(f"  {fk_sql}")
+                
+            # Check Constraints
+            for ck in table.check_constraints:
+                ck_sql = f"CHECK ({ck.expression})"
+                if ck.name:
+                    ck_sql = f"CONSTRAINT {self.quote_ident(ck.name)} {ck_sql}"
+                # Add ENFORCED/NOT ENFORCED logic if model supports it?
+                # Model doesn't explicitly have it, assuming expression handles it or default.
+                lines.append(f"  {ck_sql}")
+                
+            stmt += ",\n".join(lines)
+            stmt += "\n)"
         
         if table.tablespace:
-            stmt += f" IN {table.tablespace}"
+            if table.database_name:
+                stmt += f" IN DATABASE {self.quote_ident(table.database_name)}.{self.quote_ident(table.tablespace)}"
+            else:
+                stmt += f" IN {self.quote_ident(table.tablespace)}"
+            
+        if table.stogroup:
+            stmt += f" USING STOGROUP {self.quote_ident(table.stogroup)}"
+        
+        if table.priqty:
+            stmt += f" PRIQTY {table.priqty}"
+            
+        if table.secqty:
+            stmt += f" SECQTY {table.secqty}"
+            
+        if table.audit:
+            stmt += f" AUDIT {table.audit}"
+            
+        if table.ccsid:
+            stmt += f" CCSID {table.ccsid}"
             
         if table.partition_by:
             stmt += f" PARTITION BY {table.partition_by}"
@@ -80,3 +139,22 @@ class DB2Generator(GenericGenerator):
         if col.is_identity:
             base += " GENERATED ALWAYS AS IDENTITY"
         return base
+
+    def create_index_sql(self, index, table_name) -> str:
+        unique_str = "UNIQUE " if index.is_unique else ""
+        cols = ", ".join([self.quote_ident(c) for c in index.columns])
+        stmt = f"CREATE {unique_str}INDEX {self.quote_ident(index.name)} ON {self.quote_ident(table_name)} ({cols})"
+        
+        # DB2 Extras
+        if 'include_columns' in index.properties and index.properties['include_columns']:
+            inc_cols = ", ".join([self.quote_ident(c) for c in index.properties['include_columns']])
+            stmt += f"\n INCLUDE ({inc_cols})"
+            
+        if index.properties.get('cluster'):
+            stmt += "\n CLUSTER"
+            
+        if index.properties.get('partitioned'):
+            stmt += "\n PARTITIONED"
+            
+        stmt += ";"
+        return stmt

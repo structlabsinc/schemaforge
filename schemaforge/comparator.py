@@ -251,6 +251,29 @@ class Comparator:
             if name not in new_fks:
                 diff.dropped_fks.append(fk)
                 has_changes = True
+            else:
+                new_fk = new_fks[name]
+                # Check for modification
+                # We need to compare properties: ref_table, ref_cols, on_delete, on_update
+                is_modified = False
+                if fk.ref_table != new_fk.ref_table: is_modified = True
+                if fk.column_names != new_fk.column_names: is_modified = True
+                if fk.ref_column_names != new_fk.ref_column_names: is_modified = True
+                if fk.on_delete != new_fk.on_delete: is_modified = True
+                if fk.on_update != new_fk.on_update: is_modified = True
+                
+                if is_modified:
+                    # We don't have modified_fks list in TableDiff yet.
+                    # Add to property_changes for now or dropped/added?
+                    # Usually dropping and recreating is safer for FK changes.
+                    # But for diff reporting, let's just use property_changes
+                    diff.property_changes.append(f"FK {name} modified")
+                    # Detailed diff:
+                    if fk.on_delete != new_fk.on_delete:
+                        diff.property_changes.append(f"  FK {name} On Delete: {fk.on_delete} -> {new_fk.on_delete}")
+                    if fk.on_update != new_fk.on_update:
+                        diff.property_changes.append(f"  FK {name} On Update: {fk.on_update} -> {new_fk.on_update}")
+                    has_changes = True
         
         # Check Constraints
         old_checks = {c.name: c for c in old_table.check_constraints}
@@ -351,13 +374,29 @@ class Comparator:
         if old_table.tablespace != new_table.tablespace:
             diff.property_changes.append(f"Tablespace: {old_table.tablespace} -> {new_table.tablespace}")
             has_changes = True
-            
-        if old_table.is_unlogged != new_table.is_unlogged:
-            diff.property_changes.append(f"Unlogged: {old_table.is_unlogged} -> {new_table.is_unlogged}")
+
+        if old_table.database_name != new_table.database_name:
+            diff.property_changes.append(f"Database: {old_table.database_name} -> {new_table.database_name}")
             has_changes = True
             
-        if old_table.is_strict != new_table.is_strict:
-            diff.property_changes.append(f"Strict: {old_table.is_strict} -> {new_table.is_strict}")
+        if old_table.stogroup != new_table.stogroup:
+            diff.property_changes.append(f"Stogroup: {old_table.stogroup} -> {new_table.stogroup}")
+            has_changes = True
+            
+        if old_table.priqty != new_table.priqty:
+            diff.property_changes.append(f"Priqty: {old_table.priqty} -> {new_table.priqty}")
+            has_changes = True
+            
+        if old_table.secqty != new_table.secqty:
+            diff.property_changes.append(f"Secqty: {old_table.secqty} -> {new_table.secqty}")
+            has_changes = True
+            
+        if old_table.audit != new_table.audit:
+            diff.property_changes.append(f"Audit: {old_table.audit} -> {new_table.audit}")
+            has_changes = True
+            
+        if old_table.ccsid != new_table.ccsid:
+            diff.property_changes.append(f"CCSID: {old_table.ccsid} -> {new_table.ccsid}")
             has_changes = True
             
         if old_table.without_rowid != new_table.without_rowid:

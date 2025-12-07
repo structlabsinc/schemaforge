@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 
 @dataclass
 class Column:
@@ -98,10 +98,12 @@ class Index:
     name: str
     columns: List[str]
     is_unique: bool = False
+    is_primary: bool = False # Implicitly created by PK?
     method: Optional[str] = None # btree, gin, gist, etc.
     where_clause: Optional[str] = None # Partial index
     include_columns: List[str] = field(default_factory=list) # INCLUDE clause
     comment: Optional[str] = None
+    properties: Dict = field(default_factory=dict) # For DB2 INCLUDE, CLUSTER, etc.
     
     def to_dict(self):
         return {
@@ -149,10 +151,19 @@ class Table:
     policies: List[str] = field(default_factory=list)
     tags: dict = field(default_factory=dict)
     primary_key_name: Optional[str] = None # Added for Named Constraints
+    period_for: Optional[str] = None # DB2 Temporal: "SYSTEM_TIME (start, end)"
     
     # DB2/Oracle Specifics
-    tablespace: Optional[str] = None
+    tablespace: Optional[str] = None # For z/OS: DATABASE.TABLESPACE
+    database_name: Optional[str] = None # Specific for logical grouping if parsed separately
     partition_by: Optional[str] = None
+    
+    # DB2 z/OS Specifics
+    stogroup: Optional[str] = None
+    priqty: Optional[int] = None
+    secqty: Optional[int] = None
+    audit: Optional[str] = None # NONE, CHANGES, ALL
+    ccsid: Optional[str] = None # EBCDIC, ASCII, UNICODE
     
     # Postgres Specifics
     is_unlogged: bool = False
@@ -187,7 +198,13 @@ class Table:
             "policies": self.policies,
             "tags": self.tags,
             "tablespace": self.tablespace,
+            "database_name": self.database_name,
             "partition_by": self.partition_by,
+            "stogroup": self.stogroup,
+            "priqty": self.priqty,
+            "secqty": self.secqty,
+            "audit": self.audit,
+            "ccsid": self.ccsid,
             "is_unlogged": self.is_unlogged,
             "inherits": self.inherits,
             "row_security": self.row_security,

@@ -33,7 +33,7 @@ def run_sf(source, target):
     except Exception as e:
         return str(e)
 
-def test_scenario(name, file_to_mod, mod_func, expected_pattern):
+def run_scenario(name, file_to_mod, mod_func, expected_pattern):
     """Test a single scenario."""
     print(f"Scenario: {name:50} ", end='', flush=True)
     reset_files()
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     
     passed = 0
     for s in scenarios:
-        if test_scenario(s['name'], s['file'], s['mod'], s['expect']):
+        if run_scenario(s['name'], s['file'], s['mod'], s['expect']):
             passed += 1
     
     print(f"\n{'='*80}")

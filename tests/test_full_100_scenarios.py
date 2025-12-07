@@ -33,7 +33,7 @@ def run_sf(source, target):
     except Exception as e:
         return str(e)
 
-def test_scenario(num, name, file_to_mod, mod_func, expected_pattern):
+def run_scenario(num, name, file_to_mod, mod_func, expected_pattern):
     print(f"{num:3d}. {name:55} ", end='', flush=True)
     reset_files()
     
@@ -477,11 +477,11 @@ if __name__ == '__main__':
     passed = 0
     failed_scenarios = []
     
-    for i, (name, file, mod, expect) in enumerate(scenarios, 1):
-        if test_scenario(i, name, file, mod, expect):
+    for idx, s in enumerate(scenarios, 1):
+        if run_scenario(idx, s[0], s[1], s[2], s[3]):
             passed += 1
         else:
-            failed_scenarios.append((i, name))
+            failed_scenarios.append((idx, s[0]))
     
     print(f"\n{'='*80}")
     print(f"RESULTS: {passed}/{len(scenarios)} passed ({100*passed//len(scenarios)}%)")

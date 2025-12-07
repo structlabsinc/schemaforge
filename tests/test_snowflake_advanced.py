@@ -28,7 +28,7 @@ class TestSnowflakeAdvanced(unittest.TestCase):
         self.assertEqual(cluster_cols, ['DATE', 'ID'])
         
         gen_sql = self.generator.create_table_sql(schema.tables[0])
-        self.assertIn("CLUSTER BY (date, id)", gen_sql) # Generator uses original case currently
+        self.assertIn('CLUSTER BY ("date", "id")', gen_sql)
 
     def test_data_retention(self):
         sql = "CREATE TABLE t1 (id INT) DATA_RETENTION_TIME_IN_DAYS = 5;"

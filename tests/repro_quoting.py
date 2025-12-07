@@ -32,5 +32,21 @@ class TestQuoting(unittest.TestCase):
         self.assertIn('"tbl_🚀_516"', sql)
         self.assertIn('"col-1"', sql)
 
+    def test_quoting_start_with_paren(self):
+        # Scenario: Column name starts with closing parenthesis
+        t1 = Table(name="test")
+        t2 = Table(name="test")
+        t2.columns.append(Column(name=")_col", data_type="INTEGER"))
+        
+        plan = MigrationPlan()
+        plan.new_tables.append(t2)
+        
+        gen = PostgresGenerator()
+        sql = gen.generate_migration(plan)
+        print(f"Generated SQL (Paren): {sql}")
+        
+        self.assertIn('")_col"', sql)
+        self.assertIn('CREATE TABLE "test"', sql)
+
 if __name__ == '__main__':
     unittest.main()

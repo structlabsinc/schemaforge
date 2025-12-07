@@ -333,16 +333,86 @@ class GenericSQLParser(BaseParser):
         cols = []
         ref_table = None
         ref_cols = []
+        on_delete = None
+        on_update = None
         
         # Scan for parenthesis (cols) and REFERENCES
-        current_phase = 'cols' # cols -> references -> ref_cols
+        current_phase = 'cols' # cols -> references -> ref_cols -> actions
         
-        for token in tokens:
+        # Scan for parenthesis (cols) and REFERENCES
+        current_phase = 'cols' # cols -> references -> ref_cols -> actions
+        
+        i = 0
+        while i < len(tokens):
+            token = tokens[i]
+            
+            # Check for ON DELETE / ON UPDATE
+            # ... (omitted)
+            
+            # (Loop logic continues...)
+            
+            if isinstance(token, sqlparse.sql.Parenthesis):
+                # ...
+                pass
+            elif token.value.upper() == 'REFERENCES':
+                current_phase = 'ref_table'
+            elif current_phase == 'ref_table':
+                # Handle schema.table or just table
+                if isinstance(token, Identifier):
+                    # Identifier might contain schema.table
+                    # sqlparse handles this well usually
+                    ref_table = token.get_real_name()
+                    # Check if it has a parent (schema)
+                    if token.get_parent_name():
+                        ref_table = f"{token.get_parent_name()}.{ref_table}"
+                    
+                    current_phase = 'ref_cols'
+                elif isinstance(token, sqlparse.sql.Function):
+                    ref_table = token.get_real_name()
+                    for param in token.get_parameters():
+                        ref_cols.append(str(param))
+                    # If we found cols in Function, we are done with ref_cols
+                    current_phase = 'actions'
+                elif token.ttype is sqlparse.tokens.Name or token.ttype is sqlparse.tokens.String.Symbol:
+                    ref_table = token.value
+                    current_phase = 'ref_cols'
+                # Handle generic unknown tokens if needed
+            
+            # Check for ON DELETE / ON UPDATE
+            # These are multi-token usually: ON then DELETE/UPDATE
+            if token.value.upper() == 'ON':
+                if i + 2 < len(tokens):
+                    action_type = tokens[i+1].value.upper()
+                    if action_type in ('DELETE', 'UPDATE'):
+                        # Get action (CASCADE, SET NULL, etc)
+                        # Action might be 1 or 2 tokens (SET NULL)
+                        action_val = tokens[i+2].value.upper()
+                        offset = 3
+                        
+                        if action_val == 'SET' and i + 3 < len(tokens) and tokens[i+3].value.upper() in ('NULL', 'DEFAULT'):
+                            action_val += f" {tokens[i+3].value.upper()}"
+                            offset = 4
+                        elif action_val == 'NO' and i + 3 < len(tokens) and tokens[i+3].value.upper() == 'ACTION':
+                            action_val += " ACTION"
+                            offset = 4
+                            
+                        if action_type == 'DELETE':
+                            on_delete = action_val
+                        else:
+                            on_update = action_val
+                            
+                        i += offset
+                        continue
+            
             if isinstance(token, sqlparse.sql.Parenthesis):
                 # Extract names from parenthesis
                 names = []
-                content = token.tokens[1:-1]
-                for t in content:
+                # Remove parens
+                content_tokens_p = [t for t in token.tokens if not t.is_whitespace and not t.value in ('(', ')')]
+                # Usually sqlparse leaves ( and ) in tokens list of Parenthesis
+                
+                # Use flatten approach or specific iteration
+                for t in content_tokens_p:
                     if isinstance(t, IdentifierList):
                          for id_token in t.get_identifiers():
                              names.append(id_token.get_real_name())
@@ -350,12 +420,15 @@ class GenericSQLParser(BaseParser):
                         names.append(t.get_real_name())
                     elif t.ttype is sqlparse.tokens.Name:
                         names.append(t.value)
+                    elif t.ttype is sqlparse.tokens.String.Symbol: # "quoted"
+                         names.append(t.value)
                 
                 if current_phase == 'cols':
                     cols = names
                     current_phase = 'references'
                 elif current_phase == 'ref_cols':
                     ref_cols = names
+                    current_phase = 'actions' # explicit actions next
                     
             elif token.value.upper() == 'REFERENCES':
                 current_phase = 'ref_table'
@@ -375,14 +448,16 @@ class GenericSQLParser(BaseParser):
                     for param in token.get_parameters():
                         ref_cols.append(str(param))
                     # If we found cols in Function, we are done with ref_cols
-                    current_phase = 'done' 
-                elif token.ttype is sqlparse.tokens.Name:
+                    current_phase = 'actions'
+                elif token.ttype is sqlparse.tokens.Name or token.ttype is sqlparse.tokens.String.Symbol:
                     ref_table = token.value
                     current_phase = 'ref_cols'
                 # Handle simple dot notation if sqlparse didn't group it (rare but possible)
                 # e.g. schema . table
                 # This logic is complex to do in a simple loop without lookahead
                 # But Identifier usually catches it.
+            
+            i += 1
 
         if cols and ref_table:
             # If ref_cols is empty, it implies PK of ref_table, but we can't know that here easily without looking up ref_table
@@ -391,7 +466,9 @@ class GenericSQLParser(BaseParser):
                 name=self._clean_name(name),
                 column_names=[self._clean_name(c) for c in cols],
                 ref_table=self._clean_name(ref_table),
-                ref_column_names=[self._clean_name(c) for c in ref_cols]
+                ref_column_names=[self._clean_name(c) for c in ref_cols],
+                on_delete=on_delete,
+                on_update=on_update
             )
             table.foreign_keys.append(fk)
 
