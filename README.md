@@ -4,6 +4,7 @@
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
 ![Version](https://img.shields.io/badge/version-1.2.0-orange.svg)
 ![Tests](https://img.shields.io/badge/tests-20k%2B-green.svg)
+![Security](https://img.shields.io/badge/security-100%25_local-green.svg)
 
 **SchemaForge** is the definitive enterprise-grade engine for Schema Management. It treats your database schema as a first-class software artifact, enabling "Infrastructure as Code" for your most critical data assets.
 
@@ -28,7 +29,7 @@ We don't just speak "SQL"; we speak **Storage**.
 
 ## 💎 Supported Dialects & Feature Matrix
 
-SchemaForge goes beyond basic `CREATE TABLE`. We support the "Salient Features" that make each database unique.
+SchemaForge goes beyond basic `CREATE TABLE`. We support the "Features" that make each database unique.
 
 | Feature Category | **DB2 (z/OS)** | **Snowflake** | **PostgreSQL** | **Oracle** | **MySQL** | **SQLite** |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -44,7 +45,32 @@ SchemaForge goes beyond basic `CREATE TABLE`. We support the "Salient Features" 
 
 ---
 
-## � Comprehensive Workflow Example
+## 🔒 Security & Privacy: Zero Telemetry
+
+**SchemaForge is Air-Gap Ready.**
+
+*   **100% Local Execution**: All parsing, diffing, and generation logic runs entirely on your local machine or build agent.
+*   **No Network Calls**: The CLI makes **zero** outbound network requests. It does not check for updates, send usage stats, or upload schemas.
+*   **Safe for Sensitive Data**: Whether you are calculating nuclear throw-weights or processing HIPAA data, your schema definitions never leave your infrastructure.
+
+---
+
+## 📦 Installation Options
+
+### 1. Pre-built Binaries (No Python Required)
+Download detailed binaries for your OS from the [Releases Page](https://github.com/structlabsinc/schemaforge/releases).
+*   `sf-linux-amd64`
+*   `sf-windows-amd64.exe`
+*   `sf-macos-amd64`
+
+### 2. Python Package
+```bash
+pip install schemaforge
+```
+
+---
+
+## 📖 Comprehensive Workflow Example
 
 ### Scenario: The "Banking Compliance" Migration
 
@@ -118,31 +144,6 @@ sf compare --source v1.sql --target v2.sql --dialect db2 --plan --sql-out migrat
   > Attributes: CLUSTER
 ------------------------------------------------------------
 No destructive changes detected. Safe to apply.
-```
-
-**Output SQL (Machine Executable):**
-```sql
--- migration.sql
-ALTER TABLE "transactions" ADD COLUMN "risk_score" DECFLOAT(16);
-
-CREATE INDEX "idx_trans_risk" ON "transactions" ("account_id") 
-  INCLUDE ("risk_score", "amount") 
-  CLUSTER;
-```
-
----
-
-## 📦 Installation Options
-
-### 1. Pre-built Binaries (No Python Required)
-Download detailed binaries for your OS from the [Releases Page](https://github.com/structlabsinc/schemaforge/releases).
-*   `sf-linux-amd64`
-*   `sf-windows-amd64.exe`
-*   `sf-macos-amd64`
-
-### 2. Python Package
-```bash
-pip install schemaforge
 ```
 
 ---
