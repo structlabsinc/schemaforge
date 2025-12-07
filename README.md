@@ -55,18 +55,57 @@ SchemaForge goes beyond basic `CREATE TABLE`. We support the "Features" that mak
 
 ---
 
-## 📦 Installation Options
+## 📦 Installation & Setup
 
-### 1. Pre-built Binaries (No Python Required)
-Download detailed binaries for your OS from the [Releases Page](https://github.com/structlabsinc/schemaforge/releases).
-*   `sf-linux-amd64`
-*   `sf-windows-amd64.exe`
-*   `sf-macos-amd64`
+### Option 1: Standalone Binary (Production)
+The recommended way for CI/CD agents and local usage. **No Python or dependencies required.**
 
-### 2. Python Package
-```bash
-pip install schemaforge
-```
+1.  **Download**: Navigate to the [Releases Page](https://github.com/structlabsinc/schemaforge/releases) and grab the binary for your OS.
+    *   Linux: `sf-linux-amd64`
+    *   Windows: `sf-windows-amd64.exe`
+    *   macOS: `sf-macos-amd64`
+
+2.  **Install (Linux/macOS)**:
+    Make the binary executable and move it to your path:
+    ```bash
+    chmod +x sf-linux-amd64
+    sudo mv sf-linux-amd64 /usr/local/bin/sf
+    
+    # Verify installation
+    sf --version
+    ```
+
+3.  **Install (Windows)**:
+    *   Rename the downloaded file to `sf.exe`.
+    *   Move it to a folder in your System PATH (e.g., `C:\Program Files\SchemaForge\`).
+    *   Open PowerShell and run `sf --version`.
+
+### Option 2: Build from Source (Development)
+For security reviews, custom modifications, or internal distributions.
+
+1.  **Clone the Repository**:
+    ```bash
+    git clone https://github.com/structlabsinc/schemaforge.git
+    cd schemaforge
+    ```
+
+2.  **Setup Environment**:
+    We recommend using a virtual environment to keep dependencies isolated.
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate  # On Windows: .\venv\Scripts\activate
+    ```
+
+3.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Run via CLI**:
+    You can now run the tool directly through the Python interpreter:
+    ```bash
+    python3 schemaforge/main.py --help
+    ```
 
 ---
 
