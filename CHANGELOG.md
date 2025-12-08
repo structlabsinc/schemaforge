@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2025-12-08
+### Fixed
+- **Critical Defects**: Fixed case sensitivity for identifiers, unsafe type migrations in Postgres, Unicode handling, and silent parser failures.
+- **Oracle**: Partial fix for comparison logic (known issue with sequence increments).
+
+### Changed
+- **Tests**: Replaced random test generator with comprehensive, deterministic integration suite (128 tests).
+- **Structure**: Cleaned up repository, removed legacy/temp files.
+- **Coverage**: Deepened support for Postgres (Extensions, Exclude), Snowflake (Streams, MVs), and DB2 (Partitioned Indexes).
+
 ## [1.3.0] - 2025-12-07
 ### Added
 - **DB2 z/OS Support (God Mode)**: Complete overhaul of DB2 support, prioritizing mainframe z/OS specificity.
