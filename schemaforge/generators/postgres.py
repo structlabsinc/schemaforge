@@ -30,7 +30,7 @@ class PostgresGenerator(GenericGenerator):
                 sql.append(self.create_index_sql(idx, table.name))
             
         for table in plan.dropped_tables:
-            sql.append(f"DROP TABLE {table.name};")
+            sql.append(f"DROP TABLE {self.quote_ident(table.name)};")
             
         for diff in plan.modified_tables:
             # Postgres ALTER TABLE
@@ -43,7 +43,10 @@ class PostgresGenerator(GenericGenerator):
             for old_col, new_col in diff.modified_columns:
                 # Type change
                 if old_col.data_type != new_col.data_type:
-                    sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ALTER COLUMN {self.quote_ident(new_col.name)} TYPE {new_col.data_type};")
+                    # Safety: Add USING clause for type conversion
+                    # For simple cases like TEXT -> INT, this prevents "operator does not exist" errors
+                    # and allows explicit casting.
+                    sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ALTER COLUMN {self.quote_ident(new_col.name)} TYPE {new_col.data_type} USING {self.quote_ident(new_col.name)}::{new_col.data_type};")
                 # Nullability
                 if old_col.is_nullable != new_col.is_nullable:
                     action = "DROP NOT NULL" if new_col.is_nullable else "SET NOT NULL"

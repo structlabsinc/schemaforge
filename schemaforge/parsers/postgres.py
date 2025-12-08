@@ -23,8 +23,9 @@ class PostgresParser(GenericSQLParser):
                  first_token = statement.token_first()
                  # sqlparse might not token_first correctly if lots of whitespace/comments
                  # Use generic string check for COMMENT ON
-                 stmt_upper = str(statement).upper().strip()
-                 if stmt_upper.startswith('COMMENT ON'):
+                 # Use case-insensitive check
+                 stmt_str = str(statement).strip()
+                 if stmt_str.upper().startswith('COMMENT ON'):
                      self._process_comment(statement, self.schema)
                  elif first_token and first_token.match(DDL, 'CREATE'):
                     self._process_create(statement)
@@ -33,13 +34,18 @@ class PostgresParser(GenericSQLParser):
 
     def _process_create(self, statement):
         tokens = [t for t in statement.tokens if not t.is_whitespace]
-        stmt_str = str(statement).upper()
+        stmt_str = str(statement) # Keep original case
         
         # Check for Custom Objects & Advanced Types
         for kw in ('MATERIALIZED VIEW', 'FUNCTION', 'PROCEDURE', 'TRIGGER', 'VIEW', 'DOMAIN', 'TYPE', 'POLICY', 'EXTENSION', 'SEQUENCE'):
-            if re.search(rf'CREATE\s+(?:OR\s+REPLACE\s+)?{kw}\s+', stmt_str):
+            if re.search(rf'CREATE\s+(?:OR\s+REPLACE\s+)?{kw}\s+', stmt_str, re.IGNORECASE):
                 # Extract name
-                match = re.search(rf'CREATE\s+(?:OR\s+REPLACE\s+)?{kw}\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z0-9_".]+)', stmt_str)
+                # Robust regex for identifier: quoted or alphanumeric
+                # ((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.]+)+)
+                ident_regex = r'((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.]+)+)'
+                
+                match = re.search(rf'CREATE\s+(?:OR\s+REPLACE\s+)?{kw}\s+(?:IF\s+NOT\s+EXISTS\s+)?{ident_regex}', stmt_str, re.IGNORECASE)
+                
                 obj_name = "unknown"
                 if match:
                     obj_name = self._clean_name(match.group(1))
@@ -49,7 +55,7 @@ class PostgresParser(GenericSQLParser):
                 obj_type = kw
                 if kw == 'POLICY':
                     # CREATE POLICY name ON table ...
-                    match_on = re.search(r'ON\s+([a-zA-Z0-9_".]+)', stmt_str)
+                    match_on = re.search(rf'ON\s+{ident_regex}', stmt_str, re.IGNORECASE)
                     props = {'raw_sql': normalize_sql(str(statement))}
                     if match_on:
                          props['table'] = self._clean_name(match_on.group(1))
@@ -60,7 +66,7 @@ class PostgresParser(GenericSQLParser):
                     ))
                 elif kw == 'DOMAIN':
                     # Extract body: AS TEXT CHECK (...)
-                    match_body = re.search(r'AS\s+(.*?)(?:$|;)', stmt_str, re.DOTALL)
+                    match_body = re.search(r'AS\s+(.*?)(?:$|;)', stmt_str, re.IGNORECASE | re.DOTALL)
                     props = {}
                     if match_body:
                         props['definition'] = match_body.group(1).strip()
@@ -82,27 +88,30 @@ class PostgresParser(GenericSQLParser):
                 return
 
         # Check for INDEX
-        if 'INDEX' in stmt_str and 'ON' in stmt_str:
+        # Use upper version for quick check, but re.I for regex
+        if 'INDEX' in stmt_str.upper() and 'ON' in stmt_str.upper():
             self._process_postgres_index(statement)
             return
 
         # Check for TABLE (including PARTITION OF)
-        if 'TABLE' in stmt_str:
+        if 'TABLE' in stmt_str.upper():
             self._process_postgres_table(statement)
             return
 
     def _process_postgres_table(self, statement):
         tokens = [t for t in statement.tokens if not t.is_whitespace]
-        stmt_str = str(statement).upper()
+        stmt_str = str(statement) # Keep original case
         
         table_name = None
-        is_unlogged = 'UNLOGGED' in stmt_str
+        is_unlogged = 'UNLOGGED' in stmt_str.upper()
         partition_of = None
         partition_bound = None
         
+        ident_regex = r'((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.]+)+)'
+        
         # Check PARTITION OF
         # CREATE TABLE name PARTITION OF parent ...
-        match_part_of = re.search(r'TABLE\s+([a-zA-Z0-9_".]+)\s+PARTITION\s+OF\s+([a-zA-Z0-9_".]+)', stmt_str)
+        match_part_of = re.search(rf'TABLE\s+{ident_regex}\s+PARTITION\s+OF\s+{ident_regex}', stmt_str, re.IGNORECASE)
         if match_part_of:
             table_name = self._clean_name(match_part_of.group(1))
             partition_of = self._clean_name(match_part_of.group(2))
@@ -113,7 +122,7 @@ class PostgresParser(GenericSQLParser):
                 partition_bound = match_bound.group(1).strip()
         else:
             # Regular CREATE TABLE
-            match = re.search(r'TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z0-9_".]+)', stmt_str)
+            match = re.search(rf'TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?{ident_regex}', stmt_str, re.IGNORECASE)
             if match:
                 table_name = self._clean_name(match.group(1))
             
@@ -121,7 +130,7 @@ class PostgresParser(GenericSQLParser):
             return
             
         # Tablespace
-        match_ts = re.search(r'TABLESPACE\s+([a-zA-Z0-9_".]+)', stmt_str)
+        match_ts = re.search(rf'TABLESPACE\s+{ident_regex}', stmt_str, re.IGNORECASE)
         tablespace = match_ts.group(1) if match_ts else None
 
         table = Table(name=table_name, is_unlogged=is_unlogged, partition_of=partition_of, partition_bound=partition_bound, tablespace=tablespace)
@@ -146,18 +155,20 @@ class PostgresParser(GenericSQLParser):
         
     def _process_postgres_index(self, statement):
         # CREATE [UNIQUE] INDEX [CONCURRENTLY] name ON table USING method (cols) [WHERE ...]
-        stmt_str = str(statement).upper()
+        stmt_str = str(statement) # Keep original case
         
-        match_name = re.search(r'INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z0-9_".]+)', stmt_str)
+        ident_regex = r'((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.]+)+)'
+        
+        match_name = re.search(rf'INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?{ident_regex}', stmt_str, re.IGNORECASE)
         if not match_name: return
         idx_name = self._clean_name(match_name.group(1))
         
-        match_table = re.search(r'ON\s+([a-zA-Z0-9_".]+)', stmt_str)
+        match_table = re.search(rf'ON\s+{ident_regex}', stmt_str, re.IGNORECASE)
         if not match_table: return
         table_name = self._clean_name(match_table.group(1))
         
         method = 'btree'
-        match_method = re.search(r'USING\s+([a-zA-Z0-9_]+)', stmt_str)
+        match_method = re.search(r'USING\s+([a-zA-Z0-9_]+)', stmt_str, re.IGNORECASE)
         if match_method:
             method = match_method.group(1).lower()
             
@@ -177,6 +188,48 @@ class PostgresParser(GenericSQLParser):
                     if not cols:
                          content = token.value[1:-1]
                          cols = [self._clean_name(c.strip()) for c in content.split(',')]
+                # Also handle case when table name is quoted or mixed case, matching token might not be straightforward
+                # Fallback: if we haven't found cols yet, and we are past ON <table>, this is probably it
+                # Logic: Find 'ON', next is table, next (maybe USING), next is parens (cols)
+        
+        # New approach for cols: use regex locator to be safer
+        # USING method (cols) or ON table (cols)
+        # Regex is safer than positional tokens when mixed case logic might fail simple uppercasing
+        # But we already have cols from loop? 
+        # The loop relies on tokens[i-1].value.upper(). 
+        # sqlparse token values PRESERVE case, so .upper() comparison is correct for KEYWORDS.
+        # But `table_name.upper()` might not match `tokens[i-1].value.upper()` if table name is quoted in SQL.
+        # E.g. ON "UserLog" -> token is "UserLog". upper() is "USERLOG". table_name is UserLog.
+        # We need to rely on position relative to ON and USING.
+        
+        # Re-scan tokens logic
+        on_index = -1
+        using_index = -1
+        for i, token in enumerate(tokens):
+            if token.value.upper() == 'ON':
+                on_index = i
+            if token.value.upper() == 'USING':
+                using_index = i
+        
+        for i, token in enumerate(tokens):
+             if isinstance(token, sqlparse.sql.Parenthesis):
+                 if i > on_index and (using_index == -1 or i < using_index) and not cols:
+                     # This is likely column definition (unless USING is before? No, ON tbl USING method)
+                     # Wait, ON tbl (cols) OR ON tbl USING method (cols)
+                     # If USING is present, cols come after USING.
+                     if using_index != -1:
+                        pass # Wait for next parens after using
+                     else:
+                        content = token.value[1:-1]
+                        cols = [self._clean_name(c.strip()) for c in content.split(',')]
+                 
+                 elif i > using_index and using_index != -1 and not cols:
+                      content = token.value[1:-1]
+                      cols = [self._clean_name(c.strip()) for c in content.split(',')]
+                      
+                 elif i > 0 and tokens[i-1].value.upper() == 'INCLUDE':
+                      content = token.value[1:-1]
+                      include_cols = [self._clean_name(c.strip()) for c in content.split(',')]
         
         # WHERE Clause
         match_where = re.search(r'WHERE\s+(.*)(?:$|;)', stmt_str, re.IGNORECASE)
@@ -186,7 +239,7 @@ class PostgresParser(GenericSQLParser):
         idx = Index(
             name=idx_name, 
             columns=cols, 
-            is_unique='UNIQUE' in stmt_str, 
+            is_unique='UNIQUE' in stmt_str.upper(), 
             method=method,
             where_clause=where_clause,
             include_columns=include_cols
@@ -197,10 +250,11 @@ class PostgresParser(GenericSQLParser):
             table.indexes.append(idx)
 
     def _process_alter(self, statement):
-        stmt_str = str(statement).upper()
+        stmt_str = str(statement) # Keep original case
+        ident_regex = r'((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.]+)+)'
         
         # Check for ALTER SCHEMA
-        match_schema = re.search(r'ALTER\s+SCHEMA\s+([a-zA-Z0-9_".]+)', stmt_str)
+        match_schema = re.search(rf'ALTER\s+SCHEMA\s+{ident_regex}', stmt_str, re.IGNORECASE)
         if match_schema:
             schema_name = self._clean_name(match_schema.group(1))
             self.schema.custom_objects.append(CustomObject(
@@ -211,14 +265,12 @@ class PostgresParser(GenericSQLParser):
             return
             
         # ALTER TYPE
-        match_type = re.search(r'ALTER\s+TYPE\s+([a-zA-Z0-9_".]+)(.*)', stmt_str, re.DOTALL)
+        match_type = re.search(rf'ALTER\s+TYPE\s+{ident_regex}(.*)', stmt_str, re.DOTALL | re.IGNORECASE)
         if match_type:
             type_name = self._clean_name(match_type.group(1))
             action = match_type.group(2)
-            if 'ADD VALUE' in action:
+            if 'ADD VALUE' in action.upper():
                 # Treat as modification of type
-                # We can store this as a CustomObject update or find the existing type
-                # For now, let's just record it as a CustomObject change
                  self.schema.custom_objects.append(CustomObject(
                     obj_type='ALTER TYPE',
                     name=type_name,
@@ -226,7 +278,7 @@ class PostgresParser(GenericSQLParser):
                 ))
             return
 
-        match_table = re.search(r'ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?([a-zA-Z0-9_".]+)', stmt_str)
+        match_table = re.search(rf'ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?{ident_regex}', stmt_str, re.IGNORECASE)
         if not match_table: return
         table_name = self._clean_name(match_table.group(1))
         
@@ -234,14 +286,14 @@ class PostgresParser(GenericSQLParser):
         if not table: return
         
         # ENABLE ROW LEVEL SECURITY
-        if 'ENABLE ROW LEVEL SECURITY' in stmt_str:
+        if 'ENABLE ROW LEVEL SECURITY' in stmt_str.upper():
             table.row_security = True
-        elif 'DISABLE ROW LEVEL SECURITY' in stmt_str:
+        elif 'DISABLE ROW LEVEL SECURITY' in stmt_str.upper():
             table.row_security = False
             
         # ADD CONSTRAINT
         # Pattern: ADD CONSTRAINT name type ...
-        match_add_con = re.search(r'ADD\s+CONSTRAINT\s+([a-zA-Z0-9_".]+)\s+(.*)', stmt_str, re.DOTALL | re.IGNORECASE)
+        match_add_con = re.search(rf'ADD\s+CONSTRAINT\s+{ident_regex}\s+(.*)', stmt_str, re.DOTALL | re.IGNORECASE)
         if match_add_con:
             con_name = self._clean_name(match_add_con.group(1))
             rest = match_add_con.group(2)
@@ -264,7 +316,7 @@ class PostgresParser(GenericSQLParser):
                 table.check_constraints.append(CheckConstraint(name=con_name, expression=expr))
                 
             # FOREIGN KEY
-            match_fk = re.search(r'FOREIGN\s+KEY\s*\((.*?)\)\s*REFERENCES\s+([a-zA-Z0-9_".]+)\s*\((.*?)\)', rest, re.IGNORECASE | re.DOTALL)
+            match_fk = re.search(rf'FOREIGN\s+KEY\s*\((.*?)\)\s*REFERENCES\s+{ident_regex}\s*\((.*?)\)', rest, re.IGNORECASE | re.DOTALL)
             if match_fk:
                 cols = [self._clean_name(c.strip()) for c in match_fk.group(1).split(',')]
                 ref_table = self._clean_name(match_fk.group(2))
@@ -285,7 +337,7 @@ class PostgresParser(GenericSQLParser):
 
         # ALTER COLUMN
         # Pattern: ALTER [COLUMN] name TYPE type [USING ...]
-        match_alter_col = re.search(r'ALTER\s+(?:COLUMN\s+)?([a-zA-Z0-9_".]+)\s+TYPE\s+(.*?)(?:USING|$)', stmt_str, re.IGNORECASE)
+        match_alter_col = re.search(rf'ALTER\s+(?:COLUMN\s+)?{ident_regex}\s+TYPE\s+(.*?)(?:USING|$)', stmt_str, re.IGNORECASE)
         if match_alter_col:
             col_name = self._clean_name(match_alter_col.group(1))
             new_type = match_alter_col.group(2).strip()
@@ -296,7 +348,7 @@ class PostgresParser(GenericSQLParser):
                     return
 
         # DROP CONSTRAINT
-        match_drop = re.search(r'DROP\s+CONSTRAINT\s+(?:IF\s+EXISTS\s+)?([a-zA-Z0-9_".]+)', stmt_str, re.IGNORECASE)
+        match_drop = re.search(rf'DROP\s+CONSTRAINT\s+(?:IF\s+EXISTS\s+)?{ident_regex}', stmt_str, re.IGNORECASE)
         if match_drop:
             drop_name = self._clean_name(match_drop.group(1))
             # Remove from all lists
@@ -315,7 +367,7 @@ class PostgresParser(GenericSQLParser):
         # (Though most tests modify CREATE TABLE, so this handles only explicit ALTER scenarios)
         
         # DROP COLUMN
-        match_drop_col = re.search(r'DROP\s+COLUMN\s+(?:IF\s+EXISTS\s+)?([a-zA-Z0-9_".]+)', stmt_str, re.IGNORECASE)
+        match_drop_col = re.search(rf'DROP\s+COLUMN\s+(?:IF\s+EXISTS\s+)?{ident_regex}', stmt_str, re.IGNORECASE)
         if match_drop_col:
              col_name = self._clean_name(match_drop_col.group(1))
              table.columns = [c for c in table.columns if c.name != col_name]
@@ -329,13 +381,13 @@ class PostgresParser(GenericSQLParser):
         col = table.columns[-1]
         
         # Re-construct definition string for regex checking
-        def_str = " ".join([t.value for t in tokens]).upper()
-        # print(f"DEBUG: Checking Column {col.name} Def: {def_str}")
+        # Keep original case!
+        def_str = " ".join([t.value for t in tokens]) 
+        def_str_upper = def_str.upper() # For keyword checking
         
         # GENERATED ALWAYS AS IDENTITY
-        # GENERATED ALWAYS AS IDENTITY
-        if 'GENERATED' in def_str:
-            if 'IDENTITY' in def_str:
+        if 'GENERATED' in def_str_upper:
+            if 'IDENTITY' in def_str_upper:
                 col.is_identity = True
                 # Parse options from tokens to handle parens correctly
                 # Find IDENTITY token, look for following Parenthesis
@@ -353,7 +405,7 @@ class PostgresParser(GenericSQLParser):
                 # Clear default value if captured by generic parser as it overlaps with identity syntax
                 col.default_value = None
 
-            elif 'STORED' in def_str:
+            elif 'STORED' in def_str_upper:
                 col.is_generated = True
                 # Extract expression from tokens: GENERATED ALWAYS AS (expr) STORED
                 # Find AS then Parenthesis
@@ -377,8 +429,7 @@ class PostgresParser(GenericSQLParser):
             method = 'GIST'
             
             # Find USING
-            def_str = " ".join([t.value for t in tokens]).upper()
-            match_method = re.search(r'USING\s+([a-zA-Z0-9_]+)', def_str)
+            match_method = re.search(r'USING\s+([a-zA-Z0-9_]+)', def_str, re.IGNORECASE)
             if match_method:
                 method = match_method.group(1).lower()
                 
@@ -392,28 +443,3 @@ class PostgresParser(GenericSQLParser):
             from schemaforge.models import ExclusionConstraint
             table.exclusion_constraints.append(ExclusionConstraint(name=name, elements=elements, method=method))
         
-    def _process_constraint(self, tokens, table):
-        # Handle EXCLUDE
-        # CONSTRAINT name EXCLUDE USING method ( elements )
-        if len(tokens) > 2 and tokens[2].value.upper() == 'EXCLUDE':
-             constraint_name = self._clean_name(tokens[1].value)
-             # Extract USING method
-             method = 'GIST' # Default?
-             match_method = re.search(r'USING\s+([a-zA-Z0-9_]+)', " ".join([t.value for t in tokens]), re.IGNORECASE)
-             if match_method:
-                 method = match_method.group(1).lower()
-                 
-             # Extract elements in parenthesis
-             # Look for parenthesis
-             elements = []
-             for t in tokens:
-                 if isinstance(t, sqlparse.sql.Parenthesis):
-                     content = t.value[1:-1]
-                     elements = [e.strip() for e in content.split(',')]
-                     break
-            
-             from schemaforge.models import ExclusionConstraint
-             table.exclusion_constraints.append(ExclusionConstraint(name=constraint_name, elements=elements, method=method))
-             return
-             
-        super()._process_constraint(tokens, table)

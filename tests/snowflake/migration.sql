@@ -1,1 +1,0 @@
--- Migration Script for snowflake
