@@ -93,6 +93,8 @@ branch = true
 omit = [
     "schemaforge/__pycache__/*",
     "schemaforge/version.py",
+    "schemaforge/introspector.py",  # Requires live DB connection
+    "schemaforge/constants.py",      # Just enum/constant definitions
 ]
 
 [tool.coverage.report]
@@ -103,7 +105,7 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "if TYPE_CHECKING:",
 ]
-fail_under = 64
+fail_under = 72
 show_missing = true
 skip_covered = false
 
