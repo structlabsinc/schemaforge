@@ -13,7 +13,11 @@ class GenericSQLParser(BaseParser):
         schema = Schema()
         parsed = sqlparse.parse(sql_content)
         
+        import logging
+        logger = logging.getLogger('schemaforge')
+        
         for statement in parsed:
+            processed = False
             stmt_type = statement.get_type()
             if stmt_type == 'CREATE':
                 # Check if it is CREATE TABLE or CREATE INDEX
@@ -25,10 +29,13 @@ class GenericSQLParser(BaseParser):
                     table = self._extract_create_table(statement)
                     if table:
                         schema.tables.append(table)
+                        processed = True
                 elif len(token_list) > 1 and token_list[1].value.upper() == 'INDEX':
                     self._extract_create_index(statement, schema)
+                    processed = True
                 elif len(token_list) > 2 and token_list[1].value.upper() == 'UNIQUE' and token_list[2].value.upper() == 'INDEX':
                      self._extract_create_index(statement, schema, is_unique=True)
+                     processed = True
             
             elif stmt_type == 'UNKNOWN':
                  # Handle COMMENT ON (sqlparse might return UNKNOWN or just handle keywords)
@@ -37,6 +44,21 @@ class GenericSQLParser(BaseParser):
                  if first_token and first_token.value.upper() == 'COMMENT':
                      self._process_comment(statement, schema)
                      
+            if not processed:
+                stmt_str = str(statement).strip()
+                # Check for meaningful content (not just comments/whitespace)
+                has_content = any(not (t.is_whitespace or isinstance(t, sqlparse.sql.Comment)) for t in statement.tokens)
+                if not has_content: continue
+                
+                upper_stmt = stmt_str.upper()
+                if any(upper_stmt.startswith(k) for k in ('SET', 'USE', 'GRANT', 'REVOKE', 'COMMIT', 'ROLLBACK', 'PRAGMA', 'BEGIN', 'END')):
+                     continue
+                     
+                if upper_stmt.startswith('CREATE'):
+                     logger.error(f"Failed to parse statement: {stmt_str[:100]}...")
+                else:
+                     logger.debug(f"Ignored statement: {stmt_str[:50]}...")
+
         return schema
 
     def _extract_create_index(self, statement, schema: Schema, is_unique: bool = False):
@@ -146,6 +168,8 @@ class GenericSQLParser(BaseParser):
         
         if parenthesis:
             self._parse_columns_and_constraints(parenthesis, table)
+        else:
+            logger.warning(f"Failed to parse columns for table {table_name}: No parenthesis found. Possible syntax error (e.g. unclosed parenthesis).")
             
         return table
 

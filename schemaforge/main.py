@@ -43,7 +43,7 @@ def read_sql_source(path: str) -> str:
     import glob
     
     if os.path.isfile(path):
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding='utf-8', errors='replace') as f:
             return f.read()
             
     elif os.path.isdir(path):
@@ -57,7 +57,7 @@ def read_sql_source(path: str) -> str:
             raise ValueError(f"No .sql files found in directory: {path}")
             
         for sql_file in sql_files:
-            with open(sql_file, 'r') as f:
+            with open(sql_file, 'r', encoding='utf-8', errors='replace') as f:
                 content.append(f.read())
         
         return "\n".join(content)
