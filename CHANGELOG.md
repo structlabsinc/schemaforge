@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Coverage Threshold**: Set to 72% with `introspector.py` and `constants.py` excluded (require live DB / just enums).
 - **Documentation**: Removed emojis, updated test/coverage badges, cleaned up formatting.
+- **CI/CD**: Modernized GitHub Actions workflows (Release & Test), upgraded to Python 3.11, and added coverage gates to release pipeline.
 
 ### Module Coverage (80%+):
 - `models.py`: 100%
