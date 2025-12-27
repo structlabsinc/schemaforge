@@ -137,7 +137,9 @@ class GenericSQLParser(BaseParser):
         if not table_name:
             return None
             
-        print(f"DEBUG: Extracted Table Name: {table_name}, Cleaned: {self._clean_name(table_name)}")
+        from schemaforge.logging_config import get_logger
+        logger = get_logger("parser")
+        logger.debug(f"Extracted Table Name: {table_name}, Cleaned: {self._clean_name(table_name)}")
         table = Table(name=self._clean_name(table_name))
         
         _, parenthesis = statement.token_next_by(i=sqlparse.sql.Parenthesis)

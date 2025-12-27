@@ -1,3 +1,40 @@
+Metadata-Version: 2.4
+Name: schemaforge
+Version: 1.3.1
+Summary: Enterprise-grade Database as Code engine for schema management and DDL generation
+Author: Struct Labs Inc.
+License: Apache-2.0
+Project-URL: Homepage, https://github.com/structlabsinc/schemaforge
+Project-URL: Documentation, https://github.com/structlabsinc/schemaforge#readme
+Project-URL: Repository, https://github.com/structlabsinc/schemaforge
+Project-URL: Changelog, https://github.com/structlabsinc/schemaforge/blob/main/CHANGELOG.md
+Keywords: database,schema,migration,ddl,sql,db2,snowflake,postgres,oracle,mysql,sqlite
+Classifier: Development Status :: 4 - Beta
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: System Administrators
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Database
+Classifier: Topic :: Software Development :: Code Generators
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: sqlparse>=0.4.4
+Requires-Dist: sqlalchemy>=2.0.0
+Requires-Dist: pymysql>=1.0.0
+Requires-Dist: psycopg2-binary>=2.9.0
+Requires-Dist: snowflake-sqlalchemy>=1.4.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0.0; extra == "dev"
+Dynamic: license-file
+
 # SchemaForge - Database as Code
 
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)

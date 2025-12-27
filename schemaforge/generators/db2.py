@@ -1,6 +1,5 @@
 from schemaforge.generators.generic import GenericGenerator
 
-from schemaforge.generators.generic import GenericGenerator
 
 class DB2Generator(GenericGenerator):
     def quote_ident(self, ident: str) -> str:

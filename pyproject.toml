@@ -1,0 +1,111 @@
+[project]
+name = "schemaforge"
+dynamic = ["version"]
+description = "Enterprise-grade Database as Code engine for schema management and DDL generation"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Struct Labs Inc."}
+]
+keywords = ["database", "schema", "migration", "ddl", "sql", "db2", "snowflake", "postgres", "oracle", "mysql", "sqlite"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Software Development :: Code Generators",
+]
+
+dependencies = [
+    "sqlparse>=0.4.4",
+    "sqlalchemy>=2.0.0",
+    "pymysql>=1.0.0",
+    "psycopg2-binary>=2.9.0",
+    "snowflake-sqlalchemy>=1.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.scripts]
+sf = "schemaforge.main:main"
+
+[project.urls]
+Homepage = "https://github.com/structlabsinc/schemaforge"
+Documentation = "https://github.com/structlabsinc/schemaforge#readme"
+Repository = "https://github.com/structlabsinc/schemaforge"
+Changelog = "https://github.com/structlabsinc/schemaforge/blob/main/CHANGELOG.md"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {file = "schemaforge/VERSION"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["schemaforge*"]
+
+[tool.setuptools.package-data]
+schemaforge = ["VERSION"]
+
+# =============================================================================
+# Pytest Configuration
+# =============================================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+# =============================================================================
+# Coverage Configuration
+# =============================================================================
+[tool.coverage.run]
+source = ["schemaforge"]
+branch = true
+omit = [
+    "schemaforge/__pycache__/*",
+    "schemaforge/version.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+fail_under = 80
+show_missing = true
+skip_covered = false
+
+[tool.coverage.html]
+directory = "htmlcov"

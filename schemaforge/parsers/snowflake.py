@@ -423,7 +423,9 @@ class SnowflakeParser(GenericSQLParser):
             col_name_upper = col.name.upper()
             if col_name_upper in seen_cols:
                 # Raise error as expected by test
-                print(f"Error: Duplicate column '{col.name}' in table '{table.name}'")
+                from schemaforge.logging_config import get_logger
+                logger = get_logger("parser.snowflake")
+                logger.error(f"Duplicate column '{col.name}' in table '{table.name}'")
                 # Remove the table to prevent further processing issues? 
                 # Or just let the print be the "output" the test sees?
                 # The test captures stdout/stderr.

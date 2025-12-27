@@ -15,6 +15,7 @@ from schemaforge.generators.db2 import DB2Generator
 from schemaforge.generators.snowflake import SnowflakeGenerator
 
 from schemaforge.comparator import Comparator
+from schemaforge.logging_config import setup_logging, get_logger
 
 def get_parser(dialect):
     if dialect == 'mysql': return MySQLParser()
@@ -32,7 +33,6 @@ def get_generator(dialect):
     if dialect == 'oracle': return OracleGenerator()
     if dialect == 'db2': return DB2Generator()
     if dialect == 'snowflake': return SnowflakeGenerator()
-    raise ValueError(f"Unknown dialect: {dialect}")
     raise ValueError(f"Unknown dialect: {dialect}")
 
 def read_sql_source(path: str) -> str:
@@ -85,7 +85,9 @@ def main():
     
     # Quality of Life flags
     parser.add_argument('--no-color', action='store_true', help='Disable colored output')
-    parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose output')
+    parser.add_argument('--verbose', '-v', action='count', default=0, help='Enable verbose output (-v for INFO, -vv for DEBUG)')
+    parser.add_argument('--log-format', choices=['text', 'json'], default='text', help='Log output format (default: text)')
+    
     # Version handling
     try:
         from schemaforge.version import __version__ as version
@@ -96,8 +98,15 @@ def main():
     
     args = parser.parse_args()
     
+    # Setup logging based on verbosity and format
+    logger = setup_logging(
+        verbose=args.verbose,
+        log_format=args.log_format,
+        no_color=args.no_color
+    )
+    
     if args.verbose:
-        print(f"Debug: Command={args.command}, Dialect={args.dialect}, Source={args.source}, Target={args.target}", file=sys.stderr)
+        logger.debug(f"Command={args.command}, Dialect={args.dialect}, Source={args.source}, Target={args.target}")
     
     if args.command == 'compare':
         try:
@@ -115,7 +124,7 @@ def main():
             _handle_output(args, migration_plan)
 
         except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
+            logger.error(f"Comparison failed: {e}")
             sys.exit(1)
 
     elif args.command == 'compare-livedb':
@@ -123,7 +132,7 @@ def main():
             # Source is DB URL, Target is File
             from schemaforge.introspector import DBIntrospector
             
-            print(f"Introspecting database at {args.source}...")
+            logger.info(f"Introspecting database at {args.source}...")
             introspector = DBIntrospector(args.source)
             
             obj_types = args.object_types.split(',') if args.object_types else None
@@ -140,7 +149,7 @@ def main():
             _handle_output(args, migration_plan)
             
         except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
+            logger.error(f"Live DB comparison failed: {e}")
             sys.exit(1)
 
 def _handle_output(args, migration_plan):
