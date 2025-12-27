@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-12-27
+### Added
+- **Test Coverage Expansion**: Increased test coverage from 47% to 72% with 458 new tests (575 total).
+- **14 New Test Files**: Comprehensive test suite covering CLI, generators, parsers, comparator, and edge cases.
+- **Bug Fixes**: Fixed duplicate table detection (logs error, keeps latest), improved syntax validation (WARNING for ignored statements).
+
+### Changed
+- **Coverage Threshold**: Set to 72% with `introspector.py` and `constants.py` excluded (require live DB / just enums).
+- **Documentation**: Removed emojis, updated test/coverage badges, cleaned up formatting.
+
+### Module Coverage (80%+):
+- `models.py`: 100%
+- `logging_config.py`: 86%
+- `oracle parser`: 86%
+- `sqlite parser`: 83%
+- `mysql parser`: 82%
+- `db2 parser/generator`: 80-82%
+- `generic generator`: 81%
+
 ## [1.3.1] - 2025-12-08
 ### Fixed
 - **Critical Defects**: Fixed case sensitivity for identifiers, unsafe type migrations in Postgres, Unicode handling, and silent parser failures.
@@ -32,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.1] - 2025-12-06
 ### Fixed
-- **Quoting**: Fixed identifier quoting for special characters (e.g., `tbl🚀`, `)_col`, `user-name`) across all dialects.
+- **Quoting**: Fixed identifier quoting for special characters (e.g., `tbl`, `)_col`, `user-name`) across all dialects.
 - **Generators**: Updated Postgres, MySQL, Snowflake, Oracle, DB2, and SQLite generators to enforce dialect-specific identifier quoting.
 
 ## [1.2.0] - 2025-12-06

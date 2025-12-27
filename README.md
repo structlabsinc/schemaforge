@@ -2,17 +2,18 @@
 
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
-![Version](https://img.shields.io/badge/version-1.3.0-orange.svg)
-![Tests](https://img.shields.io/badge/tests-20k%2B-green.svg)
+![Version](https://img.shields.io/badge/version-1.3.1-orange.svg)
+![Tests](https://img.shields.io/badge/tests-575-green.svg)
+![Coverage](https://img.shields.io/badge/coverage-72%25-yellowgreen.svg)
 ![Security](https://img.shields.io/badge/security-100%25_local-green.svg)
 
 **SchemaForge** is the definitive enterprise-grade engine for Schema Management. It treats your database schema as a first-class software artifact, enabling "Infrastructure as Code" for your most critical data assets.
 
-Designed for high-compliance environments (Banking, Healthcare, Government), SchemaForge ensures that what you declare in code is **exactly** what exists in your database — down to the byte-level storage parameter.
+Designed for high-compliance environments (Banking, Healthcare, Government), SchemaForge ensures that what you declare in code is **exactly** what exists in your database - down to the byte-level storage parameter.
 
 ---
 
-## 🚀 Key Differentiators
+## Key Differentiators
 
 ### 1. Mainframe-Grade Precision (DB2 z/OS)
 We don't just speak "SQL"; we speak **Storage**.
@@ -21,13 +22,14 @@ We don't just speak "SQL"; we speak **Storage**.
 *   **Financial Accuracy**: Rigorously tested against `DECIMAL(31, 10)` and `DECFLOAT` for zero-rounding-error environments.
 
 ### 2. Battle-Hardened Reliability
-*   **23,000+ Tests**: Our test suite covers "God Mode" scenarios including invisible characters, SQL injection-like patterns, and mixed-case quoting hell.
+*   **575 Tests**: Our comprehensive test suite covers edge cases including invisible characters, SQL injection-like patterns, and mixed-case quoting.
+*   **72% Code Coverage**: Enterprise-grade test coverage with all critical paths tested.
 *   **Idempotency Guarantee**: Running a generated migration against the target state results in **Zero Drift**.
-*   **Zero Regressions**: Every release passes a massive adversarial regression suite.
+*   **Zero Regressions**: Every release passes a comprehensive regression suite.
 
 ---
 
-## 💎 Supported Dialects & Feature Matrix
+## Supported Dialects and Feature Matrix
 
 SchemaForge goes beyond basic `CREATE TABLE`. We support the "Features" that make each database unique.
 
@@ -45,7 +47,7 @@ SchemaForge goes beyond basic `CREATE TABLE`. We support the "Features" that mak
 
 ---
 
-## 🔒 Security & Privacy: Zero Telemetry
+## Security and Privacy: Zero Telemetry
 
 **SchemaForge is Air-Gap Ready.**
 
@@ -55,18 +57,18 @@ SchemaForge goes beyond basic `CREATE TABLE`. We support the "Features" that mak
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 SchemaForge follows a modular, extensible architecture designed for enterprise maintainability.
 
 ```mermaid
 flowchart TB
-    subgraph Input["📥 Input Layer"]
+    subgraph Input["Input Layer"]
         SQL["SQL Files"]
         DB["Live Database"]
     end
 
-    subgraph Core["⚙️ Core Engine"]
+    subgraph Core["Core Engine"]
         direction TB
         subgraph Parsers["Parsers"]
             GP["GenericSQLParser"]
@@ -92,7 +94,7 @@ flowchart TB
         end
     end
 
-    subgraph Output["📤 Output Layer"]
+    subgraph Output["Output Layer"]
         Plan["Execution Plan"]
         JSON["JSON Report"]
         DDL["Migration SQL"]
@@ -121,7 +123,7 @@ flowchart TB
 
 ---
 
-## 📊 Observability & Debugging
+## Observability and Debugging
 
 SchemaForge provides enterprise-grade logging for troubleshooting and CI/CD integration.
 
@@ -150,7 +152,7 @@ sf compare --source v1.sql --target v2.sql --dialect postgres -v --log-format js
 
 ---
 
-## 📦 Installation & Setup
+## Installation and Setup
 
 ### Option 1: Standalone Binary (Production)
 The recommended way for CI/CD agents and local usage. **No Python or dependencies required.**
@@ -204,7 +206,7 @@ For security reviews, custom modifications, or internal distributions.
 
 ---
 
-## � CLI Command Reference
+## CLI Command Reference
 
 The `sf` (or `schemaforge`) tool supports two primary commands: `compare` (File-to-File) and `compare-livedb` (DB-to-File).
 
@@ -230,7 +232,7 @@ The `sf` (or `schemaforge`) tool supports two primary commands: `compare` (File-
 
 ---
 
-## �📖 Comprehensive Workflow Example
+## Comprehensive Workflow Example
 
 ### Scenario: The "Banking Compliance" Migration
 
@@ -308,7 +310,7 @@ No destructive changes detected. Safe to apply.
 
 ---
 
-## 🤝 Governance & License
+## Governance and License
 SchemaForge is open-source under the **Apache 2.0** license.
 Developed by **Struct Labs Inc.** for the Enterprise.
 
