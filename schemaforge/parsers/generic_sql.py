@@ -207,7 +207,11 @@ class GenericSQLParser(BaseParser):
         first_word = tokens[0].value.upper()
         
         # Ignore common table options that might appear inside parenthesis or be misparsed
-        if first_word in ('ORGANIZE', 'CLUSTER', 'ENGINE', 'COMMENT', 'WITH', 'PARTITION'):
+        # Note: 'COMMENT' as a standalone word could be a column name, only skip 'COMMENT ON'
+        if first_word in ('ORGANIZE', 'CLUSTER', 'ENGINE', 'WITH', 'PARTITION'):
+            return
+        # Skip 'COMMENT ON' statements (table/column metadata) but not columns named 'comment'
+        if first_word == 'COMMENT' and len(tokens) > 1 and tokens[1].value.upper() == 'ON':
             return
 
         if first_word == 'CONSTRAINT':

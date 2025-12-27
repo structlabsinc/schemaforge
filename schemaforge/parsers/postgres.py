@@ -163,73 +163,61 @@ class PostgresParser(GenericSQLParser):
         if not match_name: return
         idx_name = self._clean_name(match_name.group(1))
         
-        match_table = re.search(rf'ON\s+{ident_regex}', stmt_str, re.IGNORECASE)
-        if not match_table: return
-        table_name = self._clean_name(match_table.group(1))
-        
         method = 'btree'
         match_method = re.search(r'USING\s+([a-zA-Z0-9_]+)', stmt_str, re.IGNORECASE)
         if match_method:
             method = match_method.group(1).lower()
             
-        # Parse Columns
+        # Parse Columns - use regex as primary approach since sqlparse grouping is unpredictable
         cols = []
         include_cols = []
         where_clause = None
+        table_name = None
         
-        tokens = [t for t in statement.tokens if not t.is_whitespace]
-        for i, token in enumerate(tokens):
-            if isinstance(token, sqlparse.sql.Parenthesis):
-                prev = tokens[i-1].value.upper() if i > 0 else ""
-                if prev == 'INCLUDE':
-                    content = token.value[1:-1]
-                    include_cols = [self._clean_name(c.strip()) for c in content.split(',')]
-                elif prev == 'USING' or prev == table_name.upper() or (i>1 and tokens[i-2].value.upper() == 'ON'):
-                    if not cols:
-                         content = token.value[1:-1]
-                         cols = [self._clean_name(c.strip()) for c in content.split(',')]
-                # Also handle case when table name is quoted or mixed case, matching token might not be straightforward
-                # Fallback: if we haven't found cols yet, and we are past ON <table>, this is probably it
-                # Logic: Find 'ON', next is table, next (maybe USING), next is parens (cols)
+        # Extract table name from ON clause
+        match_table = re.search(rf'ON\s+{ident_regex}', stmt_str, re.IGNORECASE)
+        if not match_table: return
+        table_name = self._clean_name(match_table.group(1))
         
-        # New approach for cols: use regex locator to be safer
-        # USING method (cols) or ON table (cols)
-        # Regex is safer than positional tokens when mixed case logic might fail simple uppercasing
-        # But we already have cols from loop? 
-        # The loop relies on tokens[i-1].value.upper(). 
-        # sqlparse token values PRESERVE case, so .upper() comparison is correct for KEYWORDS.
-        # But `table_name.upper()` might not match `tokens[i-1].value.upper()` if table name is quoted in SQL.
-        # E.g. ON "UserLog" -> token is "UserLog". upper() is "USERLOG". table_name is UserLog.
-        # We need to rely on position relative to ON and USING.
+        # Try regex-based column extraction first (most reliable)
+        # Pattern: ON table_name (cols) or ON table_name USING method (cols)
+        # Also handle: table_name(cols) grouped as function
         
-        # Re-scan tokens logic
-        on_index = -1
-        using_index = -1
-        for i, token in enumerate(tokens):
-            if token.value.upper() == 'ON':
-                on_index = i
-            if token.value.upper() == 'USING':
-                using_index = i
+        # Pattern 1: ON table (cols) without USING
+        match_cols = re.search(rf'ON\s+{ident_regex}\s*\(([^)]+)\)', stmt_str, re.IGNORECASE)
+        if match_cols:
+            cols_str = match_cols.group(2)
+            cols = [self._clean_name(c.strip()) for c in cols_str.split(',')]
         
-        for i, token in enumerate(tokens):
-             if isinstance(token, sqlparse.sql.Parenthesis):
-                 if i > on_index and (using_index == -1 or i < using_index) and not cols:
-                     # This is likely column definition (unless USING is before? No, ON tbl USING method)
-                     # Wait, ON tbl (cols) OR ON tbl USING method (cols)
-                     # If USING is present, cols come after USING.
-                     if using_index != -1:
-                        pass # Wait for next parens after using
-                     else:
+        # Pattern 2: USING method (cols)
+        if not cols:
+            match_using_cols = re.search(r'USING\s+[a-zA-Z0-9_]+\s*\(([^)]+)\)', stmt_str, re.IGNORECASE)
+            if match_using_cols:
+                cols_str = match_using_cols.group(1)
+                cols = [self._clean_name(c.strip()) for c in cols_str.split(',')]
+        
+        # Fallback: Token-based extraction for complex cases
+        if not cols:
+            tokens = [t for t in statement.tokens if not t.is_whitespace]
+            for i, token in enumerate(tokens):
+                # Handle Function type (e.g., "orders(created_at)")
+                if isinstance(token, sqlparse.sql.Function):
+                    # Extract columns from function parameters
+                    for param in token.get_parameters():
+                        cols.append(self._clean_name(str(param).strip()))
+                elif isinstance(token, sqlparse.sql.Parenthesis):
+                    prev = tokens[i-1].value.upper() if i > 0 else ""
+                    if prev == 'INCLUDE':
+                        content = token.value[1:-1]
+                        include_cols = [self._clean_name(c.strip()) for c in content.split(',')]
+                    elif not cols:
                         content = token.value[1:-1]
                         cols = [self._clean_name(c.strip()) for c in content.split(',')]
-                 
-                 elif i > using_index and using_index != -1 and not cols:
-                      content = token.value[1:-1]
-                      cols = [self._clean_name(c.strip()) for c in content.split(',')]
-                      
-                 elif i > 0 and tokens[i-1].value.upper() == 'INCLUDE':
-                      content = token.value[1:-1]
-                      include_cols = [self._clean_name(c.strip()) for c in content.split(',')]
+        
+        # Extract INCLUDE columns
+        match_include = re.search(r'INCLUDE\s*\(([^)]+)\)', stmt_str, re.IGNORECASE)
+        if match_include:
+            include_cols = [self._clean_name(c.strip()) for c in match_include.group(1).split(',')]
         
         # WHERE Clause
         match_where = re.search(r'WHERE\s+(.*)(?:$|;)', stmt_str, re.IGNORECASE)
