@@ -55,7 +55,7 @@ class PostgresParser(GenericSQLParser):
                 # Extract name
                 # Robust regex for identifier: quoted or alphanumeric
                 # ((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.]+)+)
-                ident_regex = r'((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.]+)+)'
+                ident_regex = r'((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.])+)'
                 
                 match = re.search(rf'CREATE\s+(?:OR\s+REPLACE\s+)?{kw}\s+(?:IF\s+NOT\s+EXISTS\s+)?{ident_regex}', stmt_str, re.IGNORECASE)
                 
@@ -120,7 +120,7 @@ class PostgresParser(GenericSQLParser):
         partition_of = None
         partition_bound = None
         
-        ident_regex = r'((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.]+)+)'
+        ident_regex = r'((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.])+)'
         
         # Check PARTITION OF
         # CREATE TABLE name PARTITION OF parent ...
@@ -170,7 +170,7 @@ class PostgresParser(GenericSQLParser):
         # CREATE [UNIQUE] INDEX [CONCURRENTLY] name ON table USING method (cols) [WHERE ...]
         stmt_str = str(statement) # Keep original case
         
-        ident_regex = r'((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.]+)+)'
+        ident_regex = r'((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.])+)'
         
         match_name = re.search(rf'INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?{ident_regex}', stmt_str, re.IGNORECASE)
         if not match_name: return
@@ -252,7 +252,7 @@ class PostgresParser(GenericSQLParser):
 
     def _process_alter(self, statement):
         stmt_str = str(statement) # Keep original case
-        ident_regex = r'((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.]+)+)'
+        ident_regex = r'((?:"(?:[^"]|"")+"|[a-zA-Z0-9_.])+)'
         
         # Check for ALTER SCHEMA
         match_schema = re.search(rf'ALTER\s+SCHEMA\s+{ident_regex}', stmt_str, re.IGNORECASE)
