@@ -65,6 +65,36 @@ class PostgresGenerator(GenericGenerator):
             for idx in diff.dropped_indexes:
                 sql.append(f"DROP INDEX {idx.name};")
 
+            # Foreign Keys
+            for fk in diff.dropped_fks:
+                sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP CONSTRAINT {self.quote_ident(fk.name)};")
+                
+            for fk in diff.added_fks:
+                cols = ", ".join([self.quote_ident(c) for c in fk.column_names])
+                ref_cols = ", ".join([self.quote_ident(c) for c in fk.ref_column_names])
+                fk_sql = f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD CONSTRAINT {self.quote_ident(fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(fk.ref_table)}({ref_cols})"
+                if fk.on_delete:
+                    fk_sql += f" ON DELETE {fk.on_delete}"
+                if fk.on_update:
+                    fk_sql += f" ON UPDATE {fk.on_update}"
+                fk_sql += ";"
+                sql.append(fk_sql)
+            
+            # Modified FKs (drop and recreate)
+            for old_fk, new_fk in diff.modified_fks:
+                # Drop old FK
+                sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP CONSTRAINT {self.quote_ident(old_fk.name)};")
+                # Create new FK
+                cols = ", ".join([self.quote_ident(c) for c in new_fk.column_names])
+                ref_cols = ", ".join([self.quote_ident(c) for c in new_fk.ref_column_names])
+                fk_sql = f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD CONSTRAINT {self.quote_ident(new_fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(new_fk.ref_table)}({ref_cols})"
+                if new_fk.on_delete:
+                    fk_sql += f" ON DELETE {new_fk.on_delete}"
+                if new_fk.on_update:
+                    fk_sql += f" ON UPDATE {new_fk.on_update}"
+                fk_sql += ";"
+                sql.append(fk_sql)
+
         return "\n".join(sql)
 
     def create_table_sql(self, table):

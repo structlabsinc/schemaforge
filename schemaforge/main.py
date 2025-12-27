@@ -204,6 +204,13 @@ def _handle_output(args, migration_plan):
                 output_content += f"{GREEN}    + Add Foreign Key: {fk.name} ({cols}) REFERENCES {fk.ref_table}({ref_cols}){RESET}\n"
             for fk in diff.dropped_fks:
                 output_content += f"{RED}    - Drop Foreign Key: {fk.name}{RESET}\n"
+            for old_fk, new_fk in diff.modified_fks:
+                changes = []
+                if old_fk.on_delete != new_fk.on_delete:
+                    changes.append(f"ON DELETE: {old_fk.on_delete or 'NO ACTION'} -> {new_fk.on_delete or 'NO ACTION'}")
+                if old_fk.on_update != new_fk.on_update:
+                    changes.append(f"ON UPDATE: {old_fk.on_update or 'NO ACTION'} -> {new_fk.on_update or 'NO ACTION'}")
+                output_content += f"{YELLOW}    ~ Modify Foreign Key: {new_fk.name} ({', '.join(changes)}){RESET}\n"
             for excl in diff.added_exclusion_constraints:
                 output_content += f"{GREEN}    + Add Exclusion Constraint: {excl.name} ({excl.method}){RESET}\n"
             for excl in diff.dropped_exclusion_constraints:

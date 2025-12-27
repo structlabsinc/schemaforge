@@ -8,6 +8,19 @@ from sqlparse.tokens import Keyword, DML, DDL, Name
 import re
 
 class PostgresParser(GenericSQLParser):
+    def _clean_type(self, dt: str) -> str:
+        """Override to preserve PostgreSQL-native BOOLEAN type (don't map to TINYINT(1))."""
+        if not dt:
+            return dt
+        dt_upper = dt.upper().strip()
+        
+        # PostgreSQL uses native BOOLEAN - don't map to TINYINT(1)
+        if dt_upper in ('BOOLEAN', 'BOOL'):
+            return 'BOOLEAN'
+            
+        # For other types, use parent implementation
+        return super()._clean_type(dt)
+    
     def parse(self, sql_content):
         self.schema = Schema()
         sql_content = self._strip_comments(sql_content)

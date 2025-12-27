@@ -11,10 +11,8 @@ class TableDiff:
     added_indexes: List[Index] = field(default_factory=list)
     dropped_indexes: List[Index] = field(default_factory=list)
     added_fks: List[ForeignKey] = field(default_factory=list)
-    added_fks: List[ForeignKey] = field(default_factory=list)
     dropped_fks: List[ForeignKey] = field(default_factory=list)
-    added_checks: List[CheckConstraint] = field(default_factory=list)
-    dropped_checks: List[CheckConstraint] = field(default_factory=list)
+    modified_fks: List[tuple[ForeignKey, ForeignKey]] = field(default_factory=list)  # (old, new)
     added_checks: List[CheckConstraint] = field(default_factory=list)
     dropped_checks: List[CheckConstraint] = field(default_factory=list)
     property_changes: List[str] = field(default_factory=list)
@@ -36,6 +34,10 @@ class TableDiff:
             "dropped_indexes": [i.to_dict() for i in self.dropped_indexes],
             "added_fks": [fk.to_dict() for fk in self.added_fks],
             "dropped_fks": [fk.to_dict() for fk in self.dropped_fks],
+            "modified_fks": [
+                {"old": old.to_dict(), "new": new.to_dict()} 
+                for old, new in self.modified_fks
+            ],
             "added_checks": [c.to_dict() for c in self.added_checks],
             "dropped_checks": [c.to_dict() for c in self.dropped_checks],
             "added_exclusion_constraints": [c.to_dict() for c in self.added_exclusion_constraints],
@@ -263,16 +265,8 @@ class Comparator:
                 if fk.on_update != new_fk.on_update: is_modified = True
                 
                 if is_modified:
-                    # We don't have modified_fks list in TableDiff yet.
-                    # Add to property_changes for now or dropped/added?
-                    # Usually dropping and recreating is safer for FK changes.
-                    # But for diff reporting, let's just use property_changes
-                    diff.property_changes.append(f"FK {name} modified")
-                    # Detailed diff:
-                    if fk.on_delete != new_fk.on_delete:
-                        diff.property_changes.append(f"  FK {name} On Delete: {fk.on_delete} -> {new_fk.on_delete}")
-                    if fk.on_update != new_fk.on_update:
-                        diff.property_changes.append(f"  FK {name} On Update: {fk.on_update} -> {new_fk.on_update}")
+                    # Track as modified FK - will be dropped and recreated
+                    diff.modified_fks.append((fk, new_fk))
                     has_changes = True
         
         # Check Constraints
