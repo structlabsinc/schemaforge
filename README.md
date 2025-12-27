@@ -2,7 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
-![Version](https://img.shields.io/badge/version-1.3.1-orange.svg)
+![Version](https://img.shields.io/badge/version-1.4.0-orange.svg)
 ![Tests](https://img.shields.io/badge/tests-575-green.svg)
 ![Coverage](https://img.shields.io/badge/coverage-72%25-yellowgreen.svg)
 ![Security](https://img.shields.io/badge/security-100%25_local-green.svg)
