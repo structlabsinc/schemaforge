@@ -81,7 +81,7 @@ class MySQLParser(GenericSQLParser):
         if match_part:
             table.partition_by = match_part.group(1).strip()
             
-        self.schema.tables.append(table)
+        self.schema.add_table(table)
 
     def _process_mysql_index(self, statement):
         # CREATE [UNIQUE|FULLTEXT] INDEX name ON table (cols)

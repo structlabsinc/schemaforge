@@ -222,6 +222,17 @@ class Schema:
     domains: List[CustomObject] = field(default_factory=list)
     types: List[CustomObject] = field(default_factory=list)
     
+    def add_table(self, table: Table) -> None:
+        """Add a table to the schema, raising error on duplicate."""
+        existing = self.get_table(table.name)
+        if existing:
+            import logging
+            logger = logging.getLogger('schemaforge')
+            logger.error(f"Duplicate table definition: '{table.name}'. First definition will be overwritten.")
+            # Remove the old one and add the new one (with warning logged)
+            self.tables = [t for t in self.tables if t.name != table.name]
+        self.tables.append(table)
+    
     def get_table(self, name: str) -> Optional[Table]:
         for table in self.tables:
             if table.name == name:

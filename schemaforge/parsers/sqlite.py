@@ -81,7 +81,7 @@ class SQLiteParser(GenericSQLParser):
                 self._parse_columns_and_constraints(token, table)
                 break
                 
-        self.schema.tables.append(table)
+        self.schema.add_table(table)
 
     def _process_sqlite_index(self, statement):
         # CREATE [UNIQUE] INDEX name ON table (cols)

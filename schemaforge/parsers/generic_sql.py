@@ -28,7 +28,7 @@ class GenericSQLParser(BaseParser):
                 if len(token_list) > 1 and token_list[1].value.upper() == 'TABLE':
                     table = self._extract_create_table(statement)
                     if table:
-                        schema.tables.append(table)
+                        schema.add_table(table)
                         processed = True
                 elif len(token_list) > 1 and token_list[1].value.upper() == 'INDEX':
                     self._extract_create_index(statement, schema)
@@ -57,7 +57,7 @@ class GenericSQLParser(BaseParser):
                 if upper_stmt.startswith('CREATE'):
                      logger.error(f"Failed to parse statement: {stmt_str[:100]}...")
                 else:
-                     logger.debug(f"Ignored statement: {stmt_str[:50]}...")
+                     logger.warning(f"Ignored statement (not CREATE/COMMENT): {stmt_str[:50]}...")
 
         return schema
 

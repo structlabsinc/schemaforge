@@ -163,7 +163,7 @@ class DB2Parser(GenericSQLParser):
              # Remove potential ghost column "PERIOD" created by generic parser
              table.columns = [c for c in table.columns if c.name.upper() != 'PERIOD']
             
-        self.schema.tables.append(table)
+        self.schema.add_table(table)
 
     def _parse_column_def(self, token):
         # Override to handle IDENTITY and Special Clauses

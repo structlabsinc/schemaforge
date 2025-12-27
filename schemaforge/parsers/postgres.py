@@ -164,7 +164,7 @@ class PostgresParser(GenericSQLParser):
         if match_inherits:
             table.inherits = match_inherits.group(1).strip()
             
-        self.schema.tables.append(table)
+        self.schema.add_table(table)
         
     def _process_postgres_index(self, statement):
         # CREATE [UNIQUE] INDEX [CONCURRENTLY] name ON table USING method (cols) [WHERE ...]

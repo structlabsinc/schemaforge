@@ -101,4 +101,4 @@ class OracleParser(GenericSQLParser):
         if match_ts:
             table.tablespace = self._clean_name(match_ts.group(1))
 
-        self.schema.tables.append(table)
+        self.schema.add_table(table)

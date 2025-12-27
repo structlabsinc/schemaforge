@@ -415,7 +415,7 @@ class SnowflakeParser(GenericSQLParser):
             if match:
                 table.comment = match.group(1)
 
-        self.schema.tables.append(table)
+        self.schema.add_table(table)
         
         # Check for duplicate columns (Scenario 85)
         seen_cols = set()
