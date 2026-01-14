@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-01-14
+### Added
+- **Microsoft SQL Server (T-SQL) Support**: Full support for `MSSQL` dialect.
+    - **Parsing**: `[schema].[table]` bracket quoting, `IDENTITY(seed, inc)`, `CLUSTERED` indexes.
+    - **Types**: `NVARCHAR`, `DATETIME2`, `MONEY`, `XML`, `HIERARCHYID`.
+    - **Migration**: Handles `ALTER TABLE ... ALTER COLUMN` syntax and `sp_rename`.
+    - **Scripting**: Supports `GO` batch separators in source files.
+- **Improved Migration Generation**: Refactored `GenericGenerator` to support granular dialect overrides (fixing `ALTER/MODIFY` column syntax for MSSQL/Postgres).
+
 ## [1.5.0] - 2026-01-14
 ### Added
 - **Offline-Only Architecture**: Removed all live database connectivity (SQLAlchemy, drivers) for 100% air-gapped security.

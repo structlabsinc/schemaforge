@@ -6,6 +6,7 @@ from schemaforge.parsers.sqlite import SQLiteParser
 from schemaforge.parsers.oracle import OracleParser
 from schemaforge.parsers.db2 import DB2Parser
 from schemaforge.parsers.snowflake import SnowflakeParser
+from schemaforge.parsers.mssql import MSSQLParser
 
 from schemaforge.generators.mysql import MySQLGenerator
 from schemaforge.generators.postgres import PostgresGenerator
@@ -13,6 +14,7 @@ from schemaforge.generators.sqlite import SQLiteGenerator
 from schemaforge.generators.oracle import OracleGenerator
 from schemaforge.generators.db2 import DB2Generator
 from schemaforge.generators.snowflake import SnowflakeGenerator
+from schemaforge.generators.mssql import MSSQLGenerator
 
 from schemaforge.comparator import Comparator
 from schemaforge.logging_config import setup_logging, get_logger
@@ -30,6 +32,7 @@ def get_parser(dialect, strict: bool = False):
     if dialect == 'oracle': return OracleParser(strict=strict)
     if dialect == 'db2': return DB2Parser(strict=strict)
     if dialect == 'snowflake': return SnowflakeParser(strict=strict)
+    if dialect == 'mssql': return MSSQLParser(strict=strict)
     raise ValueError(f"Unknown dialect: {dialect}")
 
 def get_generator(dialect):
@@ -39,6 +42,7 @@ def get_generator(dialect):
     if dialect == 'oracle': return OracleGenerator()
     if dialect == 'db2': return DB2Generator()
     if dialect == 'snowflake': return SnowflakeGenerator()
+    if dialect == 'mssql': return MSSQLGenerator()
     raise ValueError(f"Unknown dialect: {dialect}")
 
 def read_sql_source(path: str) -> str:
@@ -81,7 +85,7 @@ def main():
     # Target Arguments
     parser.add_argument('--target', required=True, help='Path to target schema file')
     
-    parser.add_argument('--dialect', required=True, choices=['mysql', 'postgres', 'sqlite', 'oracle', 'db2', 'snowflake'], help='SQL Dialect')
+    parser.add_argument('--dialect', required=True, choices=['mysql', 'postgres', 'sqlite', 'oracle', 'db2', 'snowflake', 'mssql'], help='SQL Dialect')
     
     # Independent flags
     parser.add_argument('--plan', action='store_true', help='Print detailed human-readable plan to stdout')

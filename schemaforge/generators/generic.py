@@ -53,18 +53,15 @@ class GenericGenerator(BaseGenerator):
         
         # Add columns
         for col in diff.added_columns:
-            def_str = f"{self.quote_ident(col.name)} {col.data_type}"
-            if not col.is_nullable:
-                def_str += " NOT NULL"
-            statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD COLUMN {def_str};")
+            statements.append(self.add_column(diff.table_name, col))
                 
         # Drop columns
         for col in diff.dropped_columns:
-            statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP COLUMN {self.quote_ident(col.name)};")
+            statements.append(self.drop_column(diff.table_name, col.name))
                 
         # Modify columns
         for old_col, new_col in diff.modified_columns:
-             statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} MODIFY COLUMN {self.quote_ident(new_col.name)} {new_col.data_type};")
+             statements.append(self.alter_column(diff.table_name, new_col.name, new_col.data_type, new_col.is_nullable))
 
         # Add Indexes
         for index in diff.added_indexes:
@@ -72,19 +69,41 @@ class GenericGenerator(BaseGenerator):
 
         # Drop Indexes
         for index in diff.dropped_indexes:
-            statements.append(f"DROP INDEX {self.quote_ident(index.name)} ON {self.quote_ident(diff.table_name)};")
+            statements.append(self._drop_index_stmt(index, diff.table_name))
 
         # Add Foreign Keys
         for fk in diff.added_fks:
-            cols = ", ".join([self.quote_ident(c) for c in fk.column_names])
-            ref_cols = ", ".join([self.quote_ident(c) for c in fk.ref_column_names])
-            statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD CONSTRAINT {self.quote_ident(fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(fk.ref_table)}({ref_cols});")
+            statements.append(self._add_fk_stmt(diff.table_name, fk))
 
         # Drop Foreign Keys
         for fk in diff.dropped_fks:
-            statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP FOREIGN KEY {self.quote_ident(fk.name)};")
+            statements.append(self._drop_fk_stmt(diff.table_name, fk))
                      
         return statements
+
+    # Default implementations
+    def add_column(self, table_name: str, column: Column) -> str:
+        def_str = f"{self.quote_ident(column.name)} {column.data_type}"
+        if not column.is_nullable:
+            def_str += " NOT NULL"
+        return f"ALTER TABLE {self.quote_ident(table_name)} ADD COLUMN {def_str};"
+
+    def drop_column(self, table_name: str, column_name: str) -> str:
+        return f"ALTER TABLE {self.quote_ident(table_name)} DROP COLUMN {self.quote_ident(column_name)};"
+
+    def alter_column(self, table_name: str, column_name: str, new_type: str, new_nullability: bool = None) -> str:
+        return f"ALTER TABLE {self.quote_ident(table_name)} MODIFY COLUMN {self.quote_ident(column_name)} {new_type};"
+
+    def _drop_index_stmt(self, index, table_name):
+        return f"DROP INDEX {self.quote_ident(index.name)} ON {self.quote_ident(table_name)};"
+    
+    def _add_fk_stmt(self, table_name, fk):
+        cols = ", ".join([self.quote_ident(c) for c in fk.column_names])
+        ref_cols = ", ".join([self.quote_ident(c) for c in fk.ref_column_names])
+        return f"ALTER TABLE {self.quote_ident(table_name)} ADD CONSTRAINT {self.quote_ident(fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(fk.ref_table)}({ref_cols});"
+
+    def _drop_fk_stmt(self, table_name, fk):
+        return f"ALTER TABLE {self.quote_ident(table_name)} DROP FOREIGN KEY {self.quote_ident(fk.name)};"
 
     def generate_rollback_migration(self, migration_plan: Any) -> str:
         """

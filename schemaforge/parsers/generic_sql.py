@@ -133,7 +133,7 @@ class GenericSQLParser(BaseParser):
             # else:
             #    print(f"DEBUG: Table {table_name} not found for index {idx_name}")
 
-    def _extract_create_table(self, statement) -> Optional[Table]:
+    def _extract_table_name(self, statement):
         table_name = None
         
         # Find TABLE keyword index
@@ -166,6 +166,10 @@ class GenericSQLParser(BaseParser):
                     else:
                         table_name = real_name
                     break
+        return table_name
+
+    def _extract_create_table(self, statement) -> Optional[Table]:
+        table_name = self._extract_table_name(statement)
                 
         if not table_name:
             return None
