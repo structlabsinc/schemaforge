@@ -85,3 +85,77 @@ class GenericGenerator(BaseGenerator):
             statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP FOREIGN KEY {self.quote_ident(fk.name)};")
                      
         return statements
+
+    def generate_rollback_migration(self, migration_plan: Any) -> str:
+        """
+        Generate a rollback migration that reverses the changes in the migration plan.
+        
+        The rollback undoes:
+        - New tables -> DROP TABLE
+        - Dropped tables -> CREATE TABLE
+        - Added columns -> DROP COLUMN
+        - Dropped columns -> ADD COLUMN
+        - Added indexes -> DROP INDEX
+        - Dropped indexes -> CREATE INDEX
+        - Added foreign keys -> DROP FK
+        - Dropped foreign keys -> ADD FK
+        """
+        statements = []
+        
+        # Inverse of new tables = DROP TABLE
+        for table in migration_plan.new_tables:
+            statements.append(f"DROP TABLE IF EXISTS {self.quote_ident(table.name)};")
+            
+        # Inverse of dropped tables = CREATE TABLE
+        for table in migration_plan.dropped_tables:
+            statements.append(self._generate_create_table(table))
+            # Recreate indexes for restored tables
+            for index in table.indexes:
+                statements.append(self._generate_create_index(index, table.name))
+            
+        # Inverse of modified tables
+        for diff in migration_plan.modified_tables:
+            statements.extend(self._generate_rollback_alter_table(diff))
+            
+        return "\n\n".join(statements)
+    
+    def _generate_rollback_alter_table(self, diff: Any) -> list[str]:
+        """Generate rollback statements for table modifications."""
+        statements = []
+        
+        # Inverse of added columns = DROP COLUMN
+        for col in diff.added_columns:
+            statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP COLUMN {self.quote_ident(col.name)};")
+        
+        # Inverse of dropped columns = ADD COLUMN (restore original)
+        for col in diff.dropped_columns:
+            def_str = f"{self.quote_ident(col.name)} {col.data_type}"
+            if not col.is_nullable:
+                def_str += " NOT NULL"
+            if col.default_value:
+                def_str += f" DEFAULT {col.default_value}"
+            statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD COLUMN {def_str};")
+        
+        # Inverse of modified columns = revert to old definition
+        for old_col, new_col in diff.modified_columns:
+            statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} MODIFY COLUMN {self.quote_ident(old_col.name)} {old_col.data_type};")
+        
+        # Inverse of added indexes = DROP INDEX
+        for index in diff.added_indexes:
+            statements.append(f"DROP INDEX {self.quote_ident(index.name)} ON {self.quote_ident(diff.table_name)};")
+        
+        # Inverse of dropped indexes = CREATE INDEX
+        for index in diff.dropped_indexes:
+            statements.append(self._generate_create_index(index, diff.table_name))
+        
+        # Inverse of added foreign keys = DROP FK
+        for fk in diff.added_fks:
+            statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP FOREIGN KEY {self.quote_ident(fk.name)};")
+        
+        # Inverse of dropped foreign keys = ADD FK
+        for fk in diff.dropped_fks:
+            cols = ", ".join([self.quote_ident(c) for c in fk.column_names])
+            ref_cols = ", ".join([self.quote_ident(c) for c in fk.ref_column_names])
+            statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD CONSTRAINT {self.quote_ident(fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(fk.ref_table)}({ref_cols});")
+        
+        return statements

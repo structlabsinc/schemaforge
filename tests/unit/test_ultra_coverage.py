@@ -48,6 +48,7 @@ class TestMainCLIUltra:
         args.json_out = None
         args.sql_out = None
         args.no_color = True
+        args.generate_rollback = False
         
         _handle_output(args, plan)
         captured = capsys.readouterr()
@@ -77,6 +78,7 @@ class TestMainCLIUltra:
         args.json_out = None
         args.sql_out = None
         args.no_color = True
+        args.generate_rollback = False
         
         _handle_output(args, plan)
         captured = capsys.readouterr()

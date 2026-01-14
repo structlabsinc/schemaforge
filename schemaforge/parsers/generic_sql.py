@@ -16,6 +16,9 @@ class GenericSQLParser(BaseParser):
         import logging
         logger = logging.getLogger('schemaforge')
         
+        # Import StrictModeError for strict mode handling
+        from schemaforge.exceptions import StrictModeError
+        
         for statement in parsed:
             processed = False
             stmt_type = statement.get_type()
@@ -55,9 +58,13 @@ class GenericSQLParser(BaseParser):
                      continue
                      
                 if upper_stmt.startswith('CREATE'):
-                     logger.error(f"Failed to parse statement: {stmt_str[:100]}...")
+                    if self.strict:
+                        raise StrictModeError(stmt_str, "Failed to parse CREATE statement")
+                    logger.error(f"Failed to parse statement: {stmt_str[:100]}...")
                 else:
-                     logger.warning(f"Ignored statement (not CREATE/COMMENT): {stmt_str[:50]}...")
+                    if self.strict:
+                        raise StrictModeError(stmt_str, "Unrecognized statement type")
+                    logger.warning(f"Ignored statement (not CREATE/COMMENT): {stmt_str[:50]}...")
 
         return schema
 

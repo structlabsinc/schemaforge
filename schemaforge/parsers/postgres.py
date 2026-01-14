@@ -26,12 +26,20 @@ class PostgresParser(GenericSQLParser):
         sql_content = self._strip_comments(sql_content)
         parsed = sqlparse.parse(sql_content)
         
+        # Import StrictModeError for strict mode handling
+        from schemaforge.exceptions import StrictModeError
+        import logging
+        logger = logging.getLogger('schemaforge')
+        
         for statement in parsed:
+            processed = False
             stmt_type = statement.get_type()
             if stmt_type in ('CREATE', 'CREATE OR REPLACE'):
                 self._process_create(statement)
+                processed = True
             elif stmt_type == 'ALTER':
                 self._process_alter(statement)
+                processed = True
             elif stmt_type == 'UNKNOWN':
                  first_token = statement.token_first()
                  # sqlparse might not token_first correctly if lots of whitespace/comments
@@ -40,8 +48,25 @@ class PostgresParser(GenericSQLParser):
                  stmt_str = str(statement).strip()
                  if stmt_str.upper().startswith('COMMENT ON'):
                      self._process_comment(statement, self.schema)
+                     processed = True
                  elif first_token and first_token.match(DDL, 'CREATE'):
                     self._process_create(statement)
+                    processed = True
+            
+            # Handle unprocessed statements in strict mode
+            if not processed:
+                stmt_str = str(statement).strip()
+                has_content = any(not (t.is_whitespace or isinstance(t, sqlparse.sql.Comment)) for t in statement.tokens)
+                if not has_content: 
+                    continue
+                
+                upper_stmt = stmt_str.upper()
+                if any(upper_stmt.startswith(k) for k in ('SET', 'USE', 'GRANT', 'REVOKE', 'COMMIT', 'ROLLBACK', 'PRAGMA', 'BEGIN', 'END', '--')):
+                    continue
+                
+                if self.strict:
+                    raise StrictModeError(stmt_str, "Failed to parse statement")
+                logger.warning(f"Ignored statement: {stmt_str[:50]}...")
                     
         return self.schema
 
