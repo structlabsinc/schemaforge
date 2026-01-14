@@ -131,7 +131,7 @@ sf compare --source ./schema/v1.sql --target ./schema/v2.sql --dialect oracle --
 | :--- | :--- |
 | `--source` | **Required.** Path to the source schema file or directory. |
 | `--target` | **Required.** Path to the target (desired) schema file or directory. |
-| `--dialect` | **Required.** Target database dialect (`db2`, `snowflake`, `postgres`, `oracle`, `mysql`, `sqlite`). |
+| `--dialect` | **Required.** Target database dialect (`db2`, `snowflake`, `postgres`, `oracle`, `mysql`, `sqlite`, `mssql`). |
 | `--plan` | Output a human-readable execution plan to STDOUT. |
 | `--sql-out` | Path to write the forward migration SQL script. |
 | `--json-out` | Path to write the JSON analysis report (for CI/CD gating). |
