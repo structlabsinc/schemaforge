@@ -66,6 +66,29 @@ Execution Plan:
       ~ Type: VARCHAR(200) -> VARCHAR(500)
 ```
 
+### Generated Migration SQL
+
+```sql
+-- Migration Script for db2
+ALTER TABLE "GENERAL_LEDGER" ADD VERSIONING USE HISTORY TABLE "GENERAL_LEDGER_HIST";
+CREATE TABLE "general_ledger_hist" (
+  "gl_id" BIGINT NOT NULL,
+  "account_number" CHAR(20) NOT NULL,
+  "transaction_date" DATE NOT NULL,
+  "amount" DECIMAL(19, 4) NOT NULL,
+  "currency" CHAR(3) NOT NULL,
+  "description" VARCHAR(500),
+  "sys_start" TIMESTAMP(12) NOT NULL,
+  "sys_end" TIMESTAMP(12) NOT NULL,
+  "trans_id" TIMESTAMP(12) NOT NULL
+) IN DATABASE "fin_db"."ts_gl_hist" USING STOGROUP "sg_hist" PRIQTY 1000 SECQTY 500;
+ALTER TABLE "general_ledger" ADD COLUMN "sys_start" TIMESTAMP(12) NOT NULL GENERATED ALWAYS AS ROW BEGIN;
+ALTER TABLE "general_ledger" ADD COLUMN "sys_end" TIMESTAMP(12) NOT NULL GENERATED ALWAYS AS ROW END;
+ALTER TABLE "general_ledger" ADD COLUMN "trans_id" TIMESTAMP(12) GENERATED ALWAYS AS TRANSACTION START ID;
+ALTER TABLE "general_ledger" ADD COLUMN "period" FOR SYSTEM_TIME ("SYS_START", "SYS_END");
+ALTER TABLE "general_ledger" ALTER COLUMN "description" SET DATA TYPE VARCHAR(500);
+```
+
 ---
 
 ## 2. Healthcare: HIPAA Security (PostgreSQL)
@@ -118,8 +141,19 @@ Execution Plan:
     + Add Column: is_sensitive (BOOLEAN)
     ~ Modify Column: notes
       ~ Comment: None -> PHI: Contains detailed clinical notes
-  + Create Policy: doctor_view_policy
   + Create Policy: admin_all_policy
+```
+
+### Generated Migration SQL
+
+```sql
+-- Migration Script for postgres
+ALTER TABLE PATIENTS ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ADMIN_ALL_POLICY" ON PATIENTS TO "ROLE_ADMIN" USING (TRUE) WITH CHECK (TRUE);
+ALTER TABLE "patients" ADD COLUMN "ssn_encrypted" BYTEA;
+ALTER TABLE "patients" ADD COLUMN "org_id" UUID NOT NULL;
+ALTER TABLE "patients" DROP COLUMN "ssn";
+ALTER TABLE "medical_records" ADD COLUMN "is_sensitive" BOOLEAN DEFAULT FALSE;
 ```
 
 ---
@@ -176,6 +210,20 @@ Execution Plan:
     PARTITION P_FUTURE VALUES LESS THAN MAXVALUE
 )
     + Add Column: order_date (DATETIME)
+```
+
+### Generated Migration SQL
+
+```sql
+-- Migration Script for mysql
+CREATE FULLTEXT INDEX FT_USER_EMAIL ON USERS(EMAIL);
+ALTER TABLE `users` ADD COLUMN `region_id` INT NOT NULL DEFAULT 1;
+CREATE INDEX `idx_region` ON `users` (`region_id`);
+ALTER TABLE `orders` ADD COLUMN `order_date` DATETIME NOT NULL;
+ALTER TABLE `orders` MODIFY COLUMN `order_id` BIGINT UNSIGNED AUTO_INCREMENT;
+ALTER TABLE `orders` MODIFY COLUMN `user_id` BIGINT UNSIGNED NOT NULL;
+ALTER TABLE `orders` MODIFY COLUMN `total_amount` DECIMAL(10, 2) NOT NULL;
+ALTER TABLE `orders` MODIFY COLUMN `status` ENUM('PENDING', 'PAID', 'SHIPPED') DEFAULT 'PENDING';
 ```
 
 ---
@@ -240,6 +288,15 @@ Execution Plan:
     + Warehouse: compute_wh
 ```
 
+### Generated Migration SQL
+
+```sql
+-- Migration Script for snowflake
+ALTER TABLE "RAW_EVENTS" CLUSTER BY (TO_DATE(EVENT_TIMESTAMP));
+ALTER TABLE "RAW_EVENTS" SET TAG COST_CENTER = 'analytics_prod';
+CREATE DYNAMIC TABLE "DAILY_METRICS" TARGET_LAG = '1 hour' WAREHOUSE = 'compute_wh' AS SELECT TO_DATE(event_timestamp) AS metric_date, event_type, COUNT(*) AS event_count FROM raw_events GROUP BY 1, 2;
+```
+
 ---
 
 ## 5. Logistics: High Throughput (Oracle)
@@ -285,6 +342,14 @@ Execution Plan:
   ~ Modify Table: SHIPMENT_TRACKING
     ~ Property Change: Organization: HEAP -> INDEX
     ~ Property Change: Partition: None -> HASH (TRACKING_ID) PARTITIONS 16
+```
+
+### Generated Migration SQL
+
+```sql
+-- Migration Script for oracle
+ALTER TABLE "shipment_tracking" MOVING TABLESPACE "TS_DATA" ORGANIZATION INDEX;
+ALTER TABLE "shipment_tracking" MODIFY PARTITION BY HASH ("tracking_id") PARTITIONS 16;
 ```
 
 ---
@@ -349,4 +414,18 @@ Execution Plan:
     + Add Column: OrgLevel (AS OrgNode.GetLevel())
     - Drop Column: ManagerID
     + Create Index: IX_Employees_OrgNode (CLUSTERED)
+```
+
+### Generated Migration SQL
+
+```sql
+-- Migration Script for mssql
+ALTER TABLE [employees] ADD [orgnode] HIERARCHYID NOT NULL;
+ALTER TABLE [employees] ADD [orglevel] AS ([orgnode].[getlevel]());
+ALTER TABLE [employees] DROP COLUMN [managerid];
+ALTER TABLE [employees] ALTER COLUMN [employeeid] INT NULL;
+CREATE UNIQUE INDEX [uk_employees_employeeid] ON [employees]([employeeid]);
+CREATE CLUSTERED INDEX [ix_employees_orgnode] ON [employees]([OrgNode]);
+ALTER TABLE [config] ADD [valuexml] XML;
+ALTER TABLE [config] DROP COLUMN [valuestring];
 ```
