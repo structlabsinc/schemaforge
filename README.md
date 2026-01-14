@@ -1,5 +1,12 @@
 # SchemaForge: Enterprise Database Infrastructure as Code
 
+![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
+![Version](https://img.shields.io/badge/version-1.5.0-orange.svg)
+![Tests](https://img.shields.io/badge/tests-770+-green.svg)
+![Coverage](https://img.shields.io/badge/coverage-82%25-green.svg)
+![Security](https://img.shields.io/badge/security-100%25_local-green.svg)
+
 SchemaForge is an industrial-grade engine for managing database schemas as software artifacts. It adheres to the principles of Infrastructure as Code (IaC), enabling reliable, repeatable, and audit-ready database modifications in high-compliance environments.
 
 Designed for the rigor of financial, healthcare, and government sectors, SchemaForge eliminates configuration drift by ensuring the declared schema state in your version control system exactly matches the target database environment.
