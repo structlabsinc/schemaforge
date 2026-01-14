@@ -17,4 +17,8 @@ class MySQLParser(SqlglotParser):
         elif "ROW_FORMAT" in str(prop).upper():
              table.row_format = str(prop.this)
         elif isinstance(prop, exp.PartitionedByProperty):
-             table.partition_by = prop.sql(dialect='mysql')
+             partition_sql = prop.sql(dialect='mysql')
+             # Strip leading "PARTITION BY " if present to avoid duplication in generator
+             if partition_sql.upper().startswith('PARTITION BY '):
+                 partition_sql = partition_sql[len('PARTITION BY '):]
+             table.partition_by = partition_sql

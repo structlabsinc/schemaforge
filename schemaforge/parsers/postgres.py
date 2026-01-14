@@ -14,7 +14,11 @@ class PostgresParser(SqlglotParser):
              # Extract partition expression
              # usually: PARTITION BY method(cols)
              # prop.this is typically the expression
-             table.partition_by = prop.sql(dialect='postgres')
+             partition_sql = prop.sql(dialect='postgres')
+             # Strip leading "PARTITION BY " if present to avoid duplication in generator
+             if partition_sql.upper().startswith('PARTITION BY '):
+                 partition_sql = partition_sql[len('PARTITION BY '):]
+             table.partition_by = partition_sql
         elif prop_type == 'InheritsProperty':
              # Create string list of tables
              tables = [t.this.name for t in prop.expressions]
