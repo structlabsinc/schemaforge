@@ -1,37 +1,45 @@
 # Contributing to SchemaForge
 
-Thank you for your interest in contributing to SchemaForge! We welcome contributions from the community.
+We welcome contributions to SchemaForge. To maintain the stability and security required for enterprise environments, please adhere to the following guidelines.
 
-## Getting Started
+## Development Standards
 
-1.  **Fork the repository** on GitHub.
-2.  **Clone your fork** locally.
+### 1. Code Style & Quality
+*   **Python Version:** All code must be compatible with Python 3.9+.
+*   **Linting:** We enforce strict linting rules. Ensure your code passes all checks before submitting.
+    *   `flake8` for style compliance.
+    *   `bandit` for security vulnerability scanning.
+*   **Type Hinting:** Use Python type hints for all function signatures to ensure code clarity and maintainability.
+
+### 2. Testing Requirements
+*   **Coverage:** New features must include unit tests. We maintain a strict focus on high code coverage (target >85%).
+*   **Regression:** Run the full test suite to ensure no regressions are introduced.
     ```bash
-    git clone https://github.com/YOUR_USERNAME/schemaforge.git
-    cd schemaforge
+    pytest tests/
     ```
-3.  **Install dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
+*   **Edge Cases:** Tests must cover edge cases, including null values, maximum precision limits, and special character handling.
 
-## Development Workflow
+## specific Workflow
 
-1.  **Create a Branch**: Always work on a feature branch (`feature/my-feature`) or fix branch (`fix/issue-123`).
-2.  **Make Changes**: Write clean, documented code.
-3.  **Run Tests**: Ensure all tests pass before submitting.
-    ```bash
-    # Run the comprehensive test suite
-    python3 tests/test_full_100_scenarios.py
-    ```
-4.  **Commit**: Use clear, descriptive commit messages.
+### Reporting Issues
+When reporting a bug, please include:
+1.  **Version Information:** output of `sf --version`.
+2.  **Reproduction Steps:** Minimal SQL files (`v1.sql`, `v2.sql`) that demonstrate the issue.
+3.  **Expected vs. Actual Output:** Clear description of the discrepancy.
 
-## Pull Request Process
+### Submitting Pull Requests
+1.  **Fork & Branch:** Create a feature branch from `main`.
+2.  **Implementation:** changes should be atomic and strictly scoped.
+3.  **Verification:**
+    *   Run unit tests: `pytest`
+    *   Run security scan: `bandit -r schemaforge/`
+4.  **Description:** Provide a detailed description of the changes and the reasoning behind them.
+5.  **DCO (Developer Certificate of Origin):** All commits must be signed off to certify that you wrote the code or have the right to contribute it.
 
-1.  Push your branch to your fork.
-2.  Open a **Pull Request** (PR) against the `main` branch.
-3.  Ensure CI/CD checks pass.
-4.  Wait for review from the maintainers.
+## Security Policy
+
+For security vulnerability reports, please do **not** open a public issue. Contact the maintenance team directly via the designated security email address.
 
 ## License
-By contributing, you agree that your contributions will be licensed under the [Apache 2.0 License](LICENSE).
+
+By contributing to this repository, you agree that your contributions will be licensed under the Apache 2.0 License.

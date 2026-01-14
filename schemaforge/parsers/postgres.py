@@ -20,7 +20,7 @@ class PostgresParser(GenericSQLParser):
             
         # For other types, use parent implementation
         return super()._clean_type(dt)
-    
+
     def parse(self, sql_content):
         self.schema = Schema()
         sql_content = self._strip_comments(sql_content)
@@ -69,7 +69,6 @@ class PostgresParser(GenericSQLParser):
                 logger.warning(f"Ignored statement: {stmt_str[:50]}...")
                     
         return self.schema
-
     def _process_create(self, statement):
         tokens = [t for t in statement.tokens if not t.is_whitespace]
         stmt_str = str(statement) # Keep original case

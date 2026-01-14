@@ -40,6 +40,10 @@ class GenericSQLParser(BaseParser):
                      self._extract_create_index(statement, schema, is_unique=True)
                      processed = True
             
+            elif stmt_type == 'ALTER':
+                self._process_alter(statement)
+                processed = True
+            
             elif stmt_type == 'UNKNOWN':
                  # Handle COMMENT ON (sqlparse might return UNKNOWN or just handle keywords)
                  # Actually sqlparse often treats COMMENT ON as valid statement but maybe not a type it recognizes easily
@@ -986,3 +990,13 @@ class GenericSQLParser(BaseParser):
                         if col.name == col_name:
                             col.comment = comment_text
                             break
+    def _process_alter(self, statement):
+        """
+        Process ALTER TABLE statements.
+        Default implementation handles simple ADD COLUMN / DROP COLUMN / MODIFY COLUMN.
+        Subclasses should override this for dialect-specific behavior.
+        """
+        # Default no-op or basic implementation if needed.
+        # PostgresParser and SnowflakeParser override this.
+        # But to avoid AttributeErrors if called from base parse() when no override exists:
+        pass

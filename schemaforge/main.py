@@ -72,17 +72,16 @@ def read_sql_source(path: str) -> str:
         raise ValueError(f"Path not found: {path}")
 
 def main():
-    parser = argparse.ArgumentParser(description='SchemaForge - Database as Code')
-    parser.add_argument('command', choices=['compare', 'compare-livedb'], help='Command to execute')
+    parser = argparse.ArgumentParser(description='SchemaForge - Database as Code (Offline Mode)')
+    parser.add_argument('command', choices=['compare'], help='Command to execute')
     
     # Source Arguments
-    parser.add_argument('--source', required=True, help='Path to source schema file (or DB URL for compare-livedb)')
+    parser.add_argument('--source', required=True, help='Path to source schema file')
     
     # Target Arguments
     parser.add_argument('--target', required=True, help='Path to target schema file')
     
     parser.add_argument('--dialect', required=True, choices=['mysql', 'postgres', 'sqlite', 'oracle', 'db2', 'snowflake'], help='SQL Dialect')
-    parser.add_argument('--object-types', help='Comma-separated list of object types to introspect (e.g. table,view). Default: table')
     
     # Independent flags
     parser.add_argument('--plan', action='store_true', help='Print detailed human-readable plan to stdout')
@@ -134,31 +133,6 @@ def main():
 
         except Exception as e:
             logger.error(f"Comparison failed: {e}")
-            sys.exit(1)
-
-    elif args.command == 'compare-livedb':
-        try:
-            # Source is DB URL, Target is File
-            from schemaforge.introspector import DBIntrospector
-            
-            logger.info(f"Introspecting database at {args.source}...")
-            introspector = DBIntrospector(args.source)
-            
-            obj_types = args.object_types.split(',') if args.object_types else None
-            source_schema = introspector.introspect(object_types=obj_types)
-            
-            target_sql = read_sql_source(args.target)
-            
-            parser_instance = get_parser(args.dialect, strict=args.strict)
-            target_schema = parser_instance.parse(target_sql)
-            
-            comparator = Comparator()
-            migration_plan = comparator.compare(source_schema, target_schema)
-            
-            _handle_output(args, migration_plan)
-            
-        except Exception as e:
-            logger.error(f"Live DB comparison failed: {e}")
             sys.exit(1)
 
 def _handle_output(args, migration_plan):
