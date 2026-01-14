@@ -63,3 +63,17 @@ class MSSQLGenerator(GenericGenerator):
     def rename_table(self, old_name: str, new_name: str) -> str:
         # T-SQL uses sp_rename
         return f"EXEC sp_rename '{old_name}', '{new_name}';"
+
+    def _generate_create_index(self, index, table_name) -> str:
+        """Override to support MSSQL CLUSTERED/NONCLUSTERED indexes."""
+        stmt = "CREATE "
+        if index.is_unique:
+            stmt += "UNIQUE "
+        if index.is_clustered:
+            stmt += "CLUSTERED "
+        elif hasattr(index, 'is_clustered'):
+            # Explicitly NONCLUSTERED if is_clustered is False and we know it
+            stmt += "NONCLUSTERED "
+        stmt += f"INDEX {self.quote_ident(index.name)} ON {self.quote_ident(table_name)}"
+        stmt += f"({', '.join([self.quote_ident(c) for c in index.columns])});"
+        return stmt

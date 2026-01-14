@@ -99,6 +99,7 @@ class Index:
     columns: List[str]
     is_unique: bool = False
     is_primary: bool = False # Implicitly created by PK?
+    is_clustered: bool = False # MSSQL: CLUSTERED vs NONCLUSTERED
     method: Optional[str] = None # btree, gin, gist, etc.
     where_clause: Optional[str] = None # Partial index
     include_columns: List[str] = field(default_factory=list) # INCLUDE clause
@@ -110,6 +111,7 @@ class Index:
             "name": self.name,
             "columns": self.columns,
             "is_unique": self.is_unique,
+            "is_clustered": self.is_clustered,
             "method": self.method,
             "where_clause": self.where_clause,
             "include_columns": self.include_columns,

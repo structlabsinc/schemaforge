@@ -51,6 +51,20 @@ class GenericGenerator(BaseGenerator):
         # diff is TableDiff
         statements = []
         
+        # Track if we need to drop/recreate PK due to column modifications
+        pk_cols = getattr(diff, 'pk_columns', [])  # Will be set by comparator if available
+        pk_constraint_name = getattr(diff, 'pk_constraint_name', None)
+        pk_dropped = False
+        
+        # Check if any modified column is part of PK
+        modified_pk_cols = [new_col.name for old_col, new_col in diff.modified_columns 
+                          if new_col.name.lower() in [c.lower() for c in pk_cols]]
+        
+        # If modifying PK columns, drop PK first
+        if modified_pk_cols and pk_constraint_name:
+            statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP CONSTRAINT {self.quote_ident(pk_constraint_name)};")
+            pk_dropped = True
+        
         # Add columns
         for col in diff.added_columns:
             statements.append(self.add_column(diff.table_name, col))
@@ -62,6 +76,11 @@ class GenericGenerator(BaseGenerator):
         # Modify columns
         for old_col, new_col in diff.modified_columns:
              statements.append(self.alter_column(diff.table_name, new_col.name, new_col.data_type, new_col.is_nullable))
+
+        # Re-add PK if we dropped it
+        if pk_dropped and pk_cols:
+            pk_col_list = ', '.join([self.quote_ident(c) for c in pk_cols])
+            statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD CONSTRAINT {self.quote_ident(pk_constraint_name)} PRIMARY KEY ({pk_col_list});")
 
         # Add Indexes
         for index in diff.added_indexes:

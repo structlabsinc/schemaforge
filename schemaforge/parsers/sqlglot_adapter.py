@@ -268,10 +268,11 @@ class SqlglotParser(BaseParser):
                       # Fallback for INDEX if parsed as Command (e.g. DB2 with INCLUDE or MSSQL CLUSTERED)
                       # Normalize whitespace for matching
                       norm_sql = " ".join(raw_sql.split())
-                      m = re.search(r'CREATE\s+(?:UNIQUE\s+)?(?:CLUSTERED\s+|NONCLUSTERED\s+)?INDEX\s+([^\s]+)\s+ON\s+([^\s(]+)', norm_sql, re.IGNORECASE)
+                      m = re.search(r'CREATE\s+(?:UNIQUE\s+)?(CLUSTERED\s+|NONCLUSTERED\s+)?INDEX\s+([^\s]+)\s+ON\s+([^\s(]+)', norm_sql, re.IGNORECASE)
                       if m:
-                           idx_name = m.group(1).replace('"', '').replace('`', '').replace("[", "").replace("]", "").replace("'", "").lower()
-                           table_name = m.group(2).replace('"', '').replace('`', '').replace("[", "").replace("]", "").replace("'", "").lower()
+                           is_clustered = m.group(1) and 'CLUSTERED' in m.group(1).upper() and 'NONCLUSTERED' not in m.group(1).upper()
+                           idx_name = m.group(2).replace('"', '').replace('`', '').replace("[", "").replace("]", "").replace("'", "").lower()
+                           table_name = m.group(3).replace('"', '').replace('`', '').replace("[", "").replace("]", "").replace("'", "").lower()
                            if '.' in table_name: table_name = table_name.split('.')[-1]
                            table = schema.get_table(table_name)
                            if table:
@@ -279,7 +280,7 @@ class SqlglotParser(BaseParser):
                                 m_cols = re.search(r'\((.*?)\)', norm_sql)
 
                                 cols = [c.strip().replace("[", "").replace("]", "").lower() for c in m_cols.group(1).split(',')] if m_cols else []
-                                is_unique = "UNIQUE" in raw_sql
+                                is_unique = "UNIQUE" in raw_sql.upper()
                                 
                                 # Extract INCLUDE columns if present
                                 include_cols_lower = []
@@ -293,6 +294,7 @@ class SqlglotParser(BaseParser):
                                      name=idx_name, 
                                      columns=cols, 
                                      is_unique=is_unique,
+                                     is_clustered=is_clustered,
                                      include_columns=include_cols_lower,
                                      properties={'include_columns': include_cols_raw} if include_cols_raw else {}
                                 ))

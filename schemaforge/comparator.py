@@ -20,6 +20,9 @@ class TableDiff:
     dropped_exclusion_constraints: List[ExclusionConstraint] = field(default_factory=list)
     modified_exclusion_constraints: List[tuple[ExclusionConstraint, ExclusionConstraint]] = field(default_factory=list)
     new_table_obj: Optional[Any] = None # Holds the full new Table object for context
+    # Primary Key info for constraint-aware migrations
+    pk_columns: List[str] = field(default_factory=list)  # Columns in PK
+    pk_constraint_name: Optional[str] = None  # Name of PK constraint (if known)
     
     def to_dict(self):
         return {
@@ -178,7 +181,16 @@ class Comparator:
         return plan
 
     def _compare_tables(self, old_table: Table, new_table: Table) -> Optional[TableDiff]:
-        diff = TableDiff(table_name=new_table.name, new_table_obj=new_table)
+        # Extract PK columns from old table for constraint-aware migrations
+        pk_columns = [c.name for c in old_table.columns if c.is_primary_key]
+        pk_constraint_name = old_table.primary_key_name if hasattr(old_table, 'primary_key_name') and old_table.primary_key_name else f"PK_{old_table.name}"
+        
+        diff = TableDiff(
+            table_name=new_table.name, 
+            new_table_obj=new_table,
+            pk_columns=pk_columns,
+            pk_constraint_name=pk_constraint_name
+        )
         has_changes = False
         
         old_cols = {c.name: c for c in old_table.columns}
@@ -218,26 +230,16 @@ class Comparator:
                 diff.dropped_indexes.append(idx)
                 has_changes = True
             else:
-                # Check for modifications (e.g. comment)
+                # Check for modifications (e.g. comment, is_clustered)
                 new_idx = new_indexes[name]
                 if idx.comment != new_idx.comment:
-                     # We don't have a specific list for modified indexes in TableDiff yet,
-                     # or we can treat it as a property change?
-                     # Existing code doesn't have modified_indexes list in TableDiff.
-                     # Let's add it or use property_changes?
-                     # Usually indexes are dropped/recreated if definition changes.
-                     # But for comments, we can just report it.
-                     # Let's add specific field to TableDiff if possible, or just append to property_changes
-                     # But main.py needs to handle it.
-                     # Let's check TableDiff definition first.
-                     pass
-                     
-                # Actually, let's look at how we handle this.
-                # If we want to support "Comment on Index", we should probably track it.
-                # Let's see if we can just treat it as a property change for the TABLE?
-                # "Index idx comment changed"
-                if idx.comment != new_idx.comment:
                     diff.property_changes.append(f"Index {name} Comment: {idx.comment} -> {new_idx.comment}")
+                    has_changes = True
+                # Detect CLUSTERED changes (MSSQL)
+                if idx.is_clustered != new_idx.is_clustered:
+                    old_cluster = "CLUSTERED" if idx.is_clustered else "NONCLUSTERED"
+                    new_cluster = "CLUSTERED" if new_idx.is_clustered else "NONCLUSTERED"
+                    diff.property_changes.append(f"Index {name}: {old_cluster} -> {new_cluster}")
                     has_changes = True
                 
         # Foreign Keys

@@ -1,0 +1,1 @@
+CREATE TABLE articles (id INT, content TEXT, FULLTEXT(content)) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;

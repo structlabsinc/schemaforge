@@ -1,0 +1,1 @@
+CREATE TABLE logs (ts TIMESTAMP, msg STRING);
