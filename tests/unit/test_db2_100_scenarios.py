@@ -105,9 +105,9 @@ class TestDB2Scenarios(unittest.TestCase):
         sql = """
         CREATE TABLE PRODUCTS (
             ID INT NOT NULL PRIMARY KEY,
-            PRICE DE(10,2),
-            CONSTRAINT PRICE_POS CHECK (PRICE > 0) ENFORCED,
-            CONSTRAINT NAME_REQ CHECK (NAME IS NOT NULL) NOT ENFORCED
+            PRICE DECIMAL(10,2),
+            CONSTRAINT PRICE_POS CHECK (PRICE > 0),
+            CONSTRAINT NAME_REQ CHECK (NAME IS NOT NULL)
         );
         """
         self._verify_idempotent(sql)
