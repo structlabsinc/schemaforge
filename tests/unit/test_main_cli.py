@@ -131,6 +131,7 @@ class TestHandleOutput:
         args.json_out = None
         args.sql_out = None
         args.no_color = True
+        args.generate_rollback = False
         
         _handle_output(args, plan)
         
@@ -148,6 +149,7 @@ class TestHandleOutput:
         args.json_out = None
         args.sql_out = None
         args.no_color = True
+        args.generate_rollback = False
         
         _handle_output(args, plan)
         
@@ -181,6 +183,7 @@ class TestHandleOutput:
         args.json_out = None
         args.sql_out = None
         args.no_color = True
+        args.generate_rollback = False
         
         _handle_output(args, plan)
         
@@ -201,6 +204,7 @@ class TestHandleOutput:
             args.json_out = temp_path
             args.sql_out = None
             args.no_color = True
+            args.generate_rollback = False
             
             _handle_output(args, plan)
             
@@ -225,6 +229,7 @@ class TestHandleOutput:
             args.json_out = None
             args.sql_out = temp_path
             args.no_color = True
+            args.generate_rollback = False
             args.dialect = 'postgres'
             
             _handle_output(args, plan)
@@ -242,6 +247,7 @@ class TestHandleOutput:
         args.plan = False
         args.json_out = None
         args.sql_out = None
+        args.generate_rollback = False
         
         _handle_output(args, plan)
         
@@ -256,6 +262,7 @@ class TestHandleOutput:
         args.json_out = None
         args.sql_out = None
         args.no_color = True
+        args.generate_rollback = False
         
         _handle_output(args, plan)
         

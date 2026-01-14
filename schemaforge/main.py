@@ -17,13 +17,19 @@ from schemaforge.generators.snowflake import SnowflakeGenerator
 from schemaforge.comparator import Comparator
 from schemaforge.logging_config import setup_logging, get_logger
 
-def get_parser(dialect):
-    if dialect == 'mysql': return MySQLParser()
-    if dialect == 'postgres': return PostgresParser()
-    if dialect == 'sqlite': return SQLiteParser()
-    if dialect == 'oracle': return OracleParser()
-    if dialect == 'db2': return DB2Parser()
-    if dialect == 'snowflake': return SnowflakeParser()
+def get_parser(dialect, strict: bool = False):
+    """Get the appropriate parser for the given dialect.
+    
+    Args:
+        dialect: SQL dialect name
+        strict: If True, parser will raise StrictModeError on unparseable statements
+    """
+    if dialect == 'mysql': return MySQLParser(strict=strict)
+    if dialect == 'postgres': return PostgresParser(strict=strict)
+    if dialect == 'sqlite': return SQLiteParser(strict=strict)
+    if dialect == 'oracle': return OracleParser(strict=strict)
+    if dialect == 'db2': return DB2Parser(strict=strict)
+    if dialect == 'snowflake': return SnowflakeParser(strict=strict)
     raise ValueError(f"Unknown dialect: {dialect}")
 
 def get_generator(dialect):
@@ -66,27 +72,29 @@ def read_sql_source(path: str) -> str:
         raise ValueError(f"Path not found: {path}")
 
 def main():
-    parser = argparse.ArgumentParser(description='SchemaForge - Database as Code')
-    parser.add_argument('command', choices=['compare', 'compare-livedb'], help='Command to execute')
+    parser = argparse.ArgumentParser(description='SchemaForge - Database as Code (Offline Mode)')
+    parser.add_argument('command', choices=['compare'], help='Command to execute')
     
     # Source Arguments
-    parser.add_argument('--source', required=True, help='Path to source schema file (or DB URL for compare-livedb)')
+    parser.add_argument('--source', required=True, help='Path to source schema file')
     
     # Target Arguments
     parser.add_argument('--target', required=True, help='Path to target schema file')
     
     parser.add_argument('--dialect', required=True, choices=['mysql', 'postgres', 'sqlite', 'oracle', 'db2', 'snowflake'], help='SQL Dialect')
-    parser.add_argument('--object-types', help='Comma-separated list of object types to introspect (e.g. table,view). Default: table')
     
     # Independent flags
     parser.add_argument('--plan', action='store_true', help='Print detailed human-readable plan to stdout')
     parser.add_argument('--json-out', help='Path to save detailed JSON plan')
     parser.add_argument('--sql-out', help='Path to save migration SQL script')
+    parser.add_argument('--generate-rollback', action='store_true', help='Generate rollback migration in addition to forward migration')
+    parser.add_argument('--rollback-out', help='Path to save rollback migration SQL script (requires --generate-rollback)')
     
     # Quality of Life flags
     parser.add_argument('--no-color', action='store_true', help='Disable colored output')
     parser.add_argument('--verbose', '-v', action='count', default=0, help='Enable verbose output (-v for INFO, -vv for DEBUG)')
     parser.add_argument('--log-format', choices=['text', 'json'], default='text', help='Log output format (default: text)')
+    parser.add_argument('--strict', action='store_true', help='Fail fast on unparseable statements instead of ignoring them')
     
     # Version handling
     try:
@@ -113,7 +121,7 @@ def main():
             source_sql = read_sql_source(args.source)
             target_sql = read_sql_source(args.target)
                 
-            parser_instance = get_parser(args.dialect)
+            parser_instance = get_parser(args.dialect, strict=args.strict)
             source_schema = parser_instance.parse(source_sql)
             target_schema = parser_instance.parse(target_sql)
             
@@ -125,31 +133,6 @@ def main():
 
         except Exception as e:
             logger.error(f"Comparison failed: {e}")
-            sys.exit(1)
-
-    elif args.command == 'compare-livedb':
-        try:
-            # Source is DB URL, Target is File
-            from schemaforge.introspector import DBIntrospector
-            
-            logger.info(f"Introspecting database at {args.source}...")
-            introspector = DBIntrospector(args.source)
-            
-            obj_types = args.object_types.split(',') if args.object_types else None
-            source_schema = introspector.introspect(object_types=obj_types)
-            
-            target_sql = read_sql_source(args.target)
-            
-            parser_instance = get_parser(args.dialect)
-            target_schema = parser_instance.parse(target_sql)
-            
-            comparator = Comparator()
-            migration_plan = comparator.compare(source_schema, target_schema)
-            
-            _handle_output(args, migration_plan)
-            
-        except Exception as e:
-            logger.error(f"Live DB comparison failed: {e}")
             sys.exit(1)
 
 def _handle_output(args, migration_plan):
@@ -384,9 +367,25 @@ def _handle_output(args, migration_plan):
         with open(args.sql_out, 'w') as f:
             f.write(full_sql)
         print(f"Migration SQL saved to {args.sql_out}")
+    
+    # 4. Rollback SQL Output
+    if args.generate_rollback:
+        get_generator = globals()['get_generator']
+        generator_instance = get_generator(args.dialect)
+        rollback_sql = generator_instance.generate_rollback_migration(migration_plan)
+        full_rollback_sql = f"-- Rollback Migration Script for {args.dialect}\n-- This script reverses the forward migration\n{rollback_sql}"
         
-    if not (args.plan or args.json_out or args.sql_out):
-        print("No output action specified. Use --plan, --json-out, or --sql-out.")
+        if args.rollback_out:
+            with open(args.rollback_out, 'w') as f:
+                f.write(full_rollback_sql)
+            print(f"Rollback SQL saved to {args.rollback_out}")
+        else:
+            # If no rollback output path specified, print to stdout
+            print("\n=== ROLLBACK MIGRATION ===")
+            print(full_rollback_sql)
+        
+    if not (args.plan or args.json_out or args.sql_out or args.generate_rollback):
+        print("No output action specified. Use --plan, --json-out, --sql-out, or --generate-rollback.")
 
 if __name__ == '__main__':
     main()

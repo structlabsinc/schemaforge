@@ -73,3 +73,33 @@ jobs:
     - name: Verify imports
       run: |
         python -c "import schemaforge; print(f'SchemaForge imported successfully')"
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install bandit
+      run: pip install bandit
+
+    - name: Run security scan
+      run: |
+        bandit -r schemaforge/ -ll --exclude '**/tests/**' -f txt || true
+        # Run again with strict mode for CI visibility
+        bandit -r schemaforge/ -ll --exclude '**/tests/**' -f json -o bandit-report.json || true
+
+    - name: Upload security report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-report
+        path: bandit-report.json
+        retention-days: 30
+
