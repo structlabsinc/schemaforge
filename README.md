@@ -43,6 +43,7 @@ SchemaForge provides deep support for the following enterprise database platform
 | **PostgreSQL** | `UNLOGGED`, `PARTITION BY RANGE/LIST/HASH`, `RLS` (Row Level Security) |
 | **Oracle** | `IOT` (Index Organized Tables), `PARTITION BY RANGE/HASH`, `VPD` |
 | **MySQL** | `InnoDB` Engine parameters, `FULLTEXT` Indexes |
+| **SQL Server (T-SQL)** | `CLUSTERED` Indexes, `IDENTITY` properties, `XML` & `HIERARCHYID` types, `GO` Batch Separators |
 | **SQLite** | `STRICT` Tables, `WITHOUT ROWID` optimizations |
 
 ---
