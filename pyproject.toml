@@ -27,6 +27,7 @@ classifiers = [
 
 dependencies = [
     "sqlparse>=0.4.4",
+    "sqlglot>=20.0.0",
 ]
 
 [project.optional-dependencies]

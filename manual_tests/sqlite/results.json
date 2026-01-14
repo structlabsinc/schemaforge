@@ -1,0 +1,96 @@
+{
+  "new_tables": [
+    {
+      "name": "fast_logs",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "INT",
+          "is_nullable": false,
+          "default_value": null,
+          "is_primary_key": true,
+          "comment": null,
+          "collation": null,
+          "masking_policy": null,
+          "is_identity": false,
+          "identity_start": null,
+          "identity_step": null,
+          "is_generated": false,
+          "generation_expression": null,
+          "identity_cycle": false
+        },
+        {
+          "name": "msg",
+          "data_type": "VARCHAR",
+          "is_nullable": true,
+          "default_value": null,
+          "is_primary_key": false,
+          "comment": null,
+          "collation": null,
+          "masking_policy": null,
+          "is_identity": false,
+          "identity_start": null,
+          "identity_step": null,
+          "is_generated": false,
+          "generation_expression": null,
+          "identity_cycle": false
+        }
+      ],
+      "indexes": [],
+      "foreign_keys": [],
+      "check_constraints": [],
+      "exclusion_constraints": [],
+      "table_type": "Table",
+      "is_transient": false,
+      "cluster_by": [],
+      "retention_days": null,
+      "comment": null,
+      "policies": [],
+      "tags": {},
+      "tablespace": null,
+      "database_name": null,
+      "partition_by": null,
+      "stogroup": null,
+      "priqty": null,
+      "secqty": null,
+      "audit": null,
+      "ccsid": null,
+      "is_unlogged": false,
+      "inherits": null,
+      "row_security": false,
+      "partition_of": null,
+      "partition_bound": null,
+      "is_strict": false,
+      "without_rowid": false
+    }
+  ],
+  "dropped_tables": [],
+  "modified_tables": [],
+  "new_custom_objects": [
+    {
+      "type": "COMMAND",
+      "name": "CREATE",
+      "properties": {
+        "raw_sql": "CREATE TABLE accounts ( id INTEGER PRIMARY KEY, account_uuid TEXT UNIQUE, balance REAL DEFAULT 0.0, full_name TEXT, full_name_upper TEXT GENERATED ALWAYS AS (UPPER(full_name)) VIRTUAL ) STRICT"
+      }
+    },
+    {
+      "type": "VIEW",
+      "name": "active_accounts",
+      "properties": {
+        "raw_sql": "CREATE VIEW active_accounts AS SELECT * FROM accounts WHERE balance > 0"
+      }
+    }
+  ],
+  "dropped_custom_objects": [],
+  "modified_custom_objects": [],
+  "new_policies": [],
+  "dropped_policies": [],
+  "modified_policies": [],
+  "new_domains": [],
+  "dropped_domains": [],
+  "modified_domains": [],
+  "new_types": [],
+  "dropped_types": [],
+  "modified_types": []
+}

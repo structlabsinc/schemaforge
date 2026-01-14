@@ -36,8 +36,8 @@ class GenericGenerator(BaseGenerator):
         # Add Foreign Keys inline
         for fk in table.foreign_keys:
             cols = ", ".join([self.quote_ident(c) for c in fk.column_names])
-            ref_cols = ", ".join([self.quote_ident(c) for c in fk.ref_column_names])
-            fk_def = f"CONSTRAINT {self.quote_ident(fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(fk.ref_table)}({ref_cols})"
+            ref_cols_str = f"({', '.join([self.quote_ident(c) for c in fk.ref_column_names])})" if fk.ref_column_names else ""
+            fk_def = f"CONSTRAINT {self.quote_ident(fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(fk.ref_table)}{ref_cols_str}"
             columns_def.append(fk_def)
             
         return f"CREATE TABLE {self.quote_ident(table.name)} (\n    " + ",\n    ".join(columns_def) + "\n);"
@@ -99,11 +99,12 @@ class GenericGenerator(BaseGenerator):
     
     def _add_fk_stmt(self, table_name, fk):
         cols = ", ".join([self.quote_ident(c) for c in fk.column_names])
-        ref_cols = ", ".join([self.quote_ident(c) for c in fk.ref_column_names])
-        return f"ALTER TABLE {self.quote_ident(table_name)} ADD CONSTRAINT {self.quote_ident(fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(fk.ref_table)}({ref_cols});"
+        ref_cols_str = f"({', '.join([self.quote_ident(c) for c in fk.ref_column_names])})" if fk.ref_column_names else ""
+        return f"ALTER TABLE {self.quote_ident(table_name)} ADD CONSTRAINT {self.quote_ident(fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(fk.ref_table)}{ref_cols_str};"
 
     def _drop_fk_stmt(self, table_name, fk):
-        return f"ALTER TABLE {self.quote_ident(table_name)} DROP FOREIGN KEY {self.quote_ident(fk.name)};"
+        # Changed from DROP FOREIGN KEY to DROP CONSTRAINT (standard)
+        return f"ALTER TABLE {self.quote_ident(table_name)} DROP CONSTRAINT {self.quote_ident(fk.name)};"
 
     def generate_rollback_migration(self, migration_plan: Any) -> str:
         """
@@ -169,12 +170,10 @@ class GenericGenerator(BaseGenerator):
         
         # Inverse of added foreign keys = DROP FK
         for fk in diff.added_fks:
-            statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP FOREIGN KEY {self.quote_ident(fk.name)};")
+            statements.append(self._drop_fk_stmt(diff.table_name, fk))
         
         # Inverse of dropped foreign keys = ADD FK
         for fk in diff.dropped_fks:
-            cols = ", ".join([self.quote_ident(c) for c in fk.column_names])
-            ref_cols = ", ".join([self.quote_ident(c) for c in fk.ref_column_names])
-            statements.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD CONSTRAINT {self.quote_ident(fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(fk.ref_table)}({ref_cols});")
+            statements.append(self._add_fk_stmt(diff.table_name, fk))
         
         return statements

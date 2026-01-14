@@ -1,0 +1,11 @@
+'CREATE TABLE accounts (
+    id INTEGER PRIMARY KEY,
+    account_uuid TEXT UNIQUE,
+    balance REAL D' contains unsupported syntax. Falling back to parsing as a 'Command'.
+Execution Plan:
+[92m  + Create Table: fast_logs[0m
+[92m    + Column: id (INT)[0m
+[92m    + Column: msg (VARCHAR)[0m
+[92m  + Create COMMAND: CREATE[0m
+[92m  + Create VIEW: active_accounts[0m
+

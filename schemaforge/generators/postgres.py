@@ -71,8 +71,8 @@ class PostgresGenerator(GenericGenerator):
                 
             for fk in diff.added_fks:
                 cols = ", ".join([self.quote_ident(c) for c in fk.column_names])
-                ref_cols = ", ".join([self.quote_ident(c) for c in fk.ref_column_names])
-                fk_sql = f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD CONSTRAINT {self.quote_ident(fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(fk.ref_table)}({ref_cols})"
+                ref_cols_str = f"({', '.join([self.quote_ident(c) for c in fk.ref_column_names])})" if fk.ref_column_names else ""
+                fk_sql = f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD CONSTRAINT {self.quote_ident(fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(fk.ref_table)}{ref_cols_str}"
                 if fk.on_delete:
                     fk_sql += f" ON DELETE {fk.on_delete}"
                 if fk.on_update:
@@ -86,8 +86,8 @@ class PostgresGenerator(GenericGenerator):
                 sql.append(f"ALTER TABLE {self.quote_ident(diff.table_name)} DROP CONSTRAINT {self.quote_ident(old_fk.name)};")
                 # Create new FK
                 cols = ", ".join([self.quote_ident(c) for c in new_fk.column_names])
-                ref_cols = ", ".join([self.quote_ident(c) for c in new_fk.ref_column_names])
-                fk_sql = f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD CONSTRAINT {self.quote_ident(new_fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(new_fk.ref_table)}({ref_cols})"
+                ref_cols_str = f"({', '.join([self.quote_ident(c) for c in new_fk.ref_column_names])})" if new_fk.ref_column_names else ""
+                fk_sql = f"ALTER TABLE {self.quote_ident(diff.table_name)} ADD CONSTRAINT {self.quote_ident(new_fk.name)} FOREIGN KEY ({cols}) REFERENCES {self.quote_ident(new_fk.ref_table)}{ref_cols_str}"
                 if new_fk.on_delete:
                     fk_sql += f" ON DELETE {new_fk.on_delete}"
                 if new_fk.on_update:
@@ -107,7 +107,14 @@ class PostgresGenerator(GenericGenerator):
         
         pk_cols = [c.name for c in table.columns if c.is_primary_key]
         if pk_cols:
-            cols.append(f"  PRIMARY KEY ({', '.join(pk_cols)})")
+            cols.append(f"  PRIMARY KEY ({', '.join([self.quote_ident(c) for c in pk_cols])})")
+            
+        # Add Foreign Keys inline (BUG-001 fix)
+        for fk in table.foreign_keys:
+            cols_str = ", ".join([self.quote_ident(c) for c in fk.column_names])
+            ref_cols_str = f"({', '.join([self.quote_ident(c) for c in fk.ref_column_names])})" if fk.ref_column_names else ""
+            fk_def = f"  CONSTRAINT {self.quote_ident(fk.name)} FOREIGN KEY ({cols_str}) REFERENCES {self.quote_ident(fk.ref_table)}{ref_cols_str}"
+            cols.append(fk_def)
             
         stmt += ",\n".join(cols)
         stmt += "\n)"

@@ -82,3 +82,66 @@ Demonstrates strict typing in SQLite (`STRICT` tables) and modifying column cons
 *   **Migration Logic:** Handling SQLite's "Create-Copy-Drop" migration pattern automatically.
 
 ---
+
+## 5. Analytics: Modern Pipelines (Snowflake)
+
+**Directory:** `examples/analytics_snowflake/`
+
+Demonstrates using Snowflake's native Data Engineering constructs to build a self-refreshing analytics pipeline.
+
+### Key Features Demonstrated:
+*   **Dynamic Tables:** Replacing complex ETL with declarative `CREATE DYNAMIC TABLE`.
+*   **Clustering:** Adding `CLUSTER BY` for query performance optimization.
+*   **Governance:** Applying Object Tags (`SET TAG`) for cost tracking.
+
+**Try it:**
+```bash
+sf compare \
+  --source examples/analytics_snowflake/v1.sql \
+  --target examples/analytics_snowflake/v2.sql \
+  --dialect snowflake \
+  --plan
+```
+
+---
+
+## 6. Logistics: High Throughput (Oracle)
+
+**Directory:** `examples/logistics_oracle/`
+
+A shipment tracking system optimized for massive write volume and fast primary key lookups.
+
+### Key Features Demonstrated:
+*   **Index Organized Tables (IOT):** Storing data within the B-Tree index for O(1) access.
+*   **Hash Partitioning:** Distributing data across 16 partitions to prevent hot-spots.
+
+**Try it:**
+```bash
+sf compare \
+  --source examples/logistics_oracle/v1.sql \
+  --target examples/logistics_oracle/v2.sql \
+  --dialect oracle \
+  --plan
+```
+
+---
+
+## 7. Corporate: Hierarchy & Config (MSSQL)
+
+**Directory:** `examples/corporate_mssql/`
+
+Managing complex corporate data structures using T-SQL specific extensions.
+
+### Key Features Demonstrated:
+*   **HierarchyID:** Replaces inefficient self-joins with an optimized hierarchical data type.
+*   **XML Type:** Storing configuration blobs in validated `XML` columns.
+*   **Clustered Indexes:** Explicit control over physical data ordering.
+
+**Try it:**
+```bash
+sf compare \
+  --source examples/corporate_mssql/v1.sql \
+  --target examples/corporate_mssql/v2.sql \
+  --dialect mssql \
+  --plan
+```

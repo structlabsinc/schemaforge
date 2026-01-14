@@ -1,0 +1,174 @@
+{
+  "new_tables": [
+    {
+      "name": "raw_data",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "INT",
+          "is_nullable": true,
+          "default_value": null,
+          "is_primary_key": false,
+          "comment": null,
+          "collation": null,
+          "masking_policy": null,
+          "is_identity": false,
+          "identity_start": null,
+          "identity_step": null,
+          "is_generated": false,
+          "generation_expression": null,
+          "identity_cycle": false
+        },
+        {
+          "name": "payload",
+          "data_type": "VARIANT",
+          "is_nullable": true,
+          "default_value": null,
+          "is_primary_key": false,
+          "comment": null,
+          "collation": null,
+          "masking_policy": null,
+          "is_identity": false,
+          "identity_start": null,
+          "identity_step": null,
+          "is_generated": false,
+          "generation_expression": null,
+          "identity_cycle": false
+        },
+        {
+          "name": "ingested_at",
+          "data_type": "TIMESTAMP_NTZ",
+          "is_nullable": true,
+          "default_value": "CURRENT_TIMESTAMP()",
+          "is_primary_key": false,
+          "comment": null,
+          "collation": null,
+          "masking_policy": null,
+          "is_identity": false,
+          "identity_start": null,
+          "identity_step": null,
+          "is_generated": false,
+          "generation_expression": null,
+          "identity_cycle": false
+        }
+      ],
+      "indexes": [],
+      "foreign_keys": [],
+      "check_constraints": [],
+      "exclusion_constraints": [],
+      "table_type": "Table",
+      "is_transient": true,
+      "cluster_by": [],
+      "retention_days": 1,
+      "comment": null,
+      "policies": [
+        "MASKING POLICY EMAIL_MASK ON PAYLOAD"
+      ],
+      "tags": {
+        "security_level": "HIGHLY_SENSITIVE"
+      },
+      "tablespace": null,
+      "database_name": null,
+      "partition_by": null,
+      "stogroup": null,
+      "priqty": null,
+      "secqty": null,
+      "audit": null,
+      "ccsid": null,
+      "is_unlogged": false,
+      "inherits": null,
+      "row_security": false,
+      "partition_of": null,
+      "partition_bound": null,
+      "is_strict": false,
+      "without_rowid": false
+    },
+    {
+      "name": "filtered_data",
+      "columns": [],
+      "indexes": [],
+      "foreign_keys": [],
+      "check_constraints": [],
+      "exclusion_constraints": [],
+      "table_type": "Dynamic Table",
+      "is_transient": false,
+      "cluster_by": [],
+      "retention_days": null,
+      "comment": null,
+      "policies": [],
+      "tags": {},
+      "tablespace": null,
+      "database_name": null,
+      "partition_by": null,
+      "stogroup": null,
+      "priqty": null,
+      "secqty": null,
+      "audit": null,
+      "ccsid": null,
+      "is_unlogged": false,
+      "inherits": null,
+      "row_security": false,
+      "partition_of": null,
+      "partition_bound": null,
+      "is_strict": false,
+      "without_rowid": false
+    }
+  ],
+  "dropped_tables": [],
+  "modified_tables": [],
+  "new_custom_objects": [
+    {
+      "type": "MASKING POLICY",
+      "name": "email_mask as (val string)",
+      "properties": {
+        "raw_sql": "CREATE MASKING POLICY EMAIL_MASK AS (VAL string) RETURNS string -> CASE WHEN CURRENT_ROLE() IN ('ANALYST') THEN VAL ELSE '*********' END;"
+      }
+    },
+    {
+      "type": "TAG",
+      "name": "security_level",
+      "properties": {
+        "raw_sql": "CREATE TAG SECURITY_LEVEL COMMENT = 'Privacy sensitivity level';"
+      }
+    },
+    {
+      "type": "STAGE",
+      "name": "my_s3_stage",
+      "properties": {
+        "raw_sql": "CREATE STAGE MY_S3_STAGE URL = 's3://mybucket/data/' CREDENTIALS = (AWS_KEY_ID = 'xxx' AWS_SECRET_KEY = 'yyy');"
+      }
+    },
+    {
+      "type": "PIPE",
+      "name": "my_pipe",
+      "properties": {
+        "raw_sql": "CREATE PIPE MY_PIPE AUTO_INGEST = TRUE AS COPY INTO RAW_DATA FROM @MY_S3_STAGE;"
+      }
+    },
+    {
+      "type": "TASK",
+      "name": "my_task",
+      "properties": {
+        "raw_sql": "CREATE TASK MY_TASK WAREHOUSE = COMPUTE_WH SCHEDULE = '5 MINUTE' AS SELECT 1;"
+      }
+    },
+    {
+      "type": "STREAM",
+      "name": "raw_data_stream",
+      "properties": {
+        "raw_sql": "CREATE STREAM RAW_DATA_STREAM ON TABLE RAW_DATA;"
+      }
+    }
+  ],
+  "dropped_custom_objects": [],
+  "modified_custom_objects": [],
+  "new_policies": [],
+  "dropped_policies": [],
+  "modified_policies": [],
+  "new_domains": [],
+  "dropped_domains": [],
+  "modified_domains": [],
+  "new_types": [],
+  "dropped_types": [],
+  "modified_types": []
+}

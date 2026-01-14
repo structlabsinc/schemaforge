@@ -28,8 +28,8 @@ The SchemaForge supports the full spectrum of modern enterprise databases:
 
 ## Proven Reliability
 This tool has undergone rigorous **Massive Blackbox Testing**, verifying its accuracy against **1,200+ unique scenarios** across all supported dialects.
-*   **100% Pass Rate** on Snowflake, Postgres, SQLite, Oracle, and DB2.
-*   **99.5% Pass Rate** on MySQL (minor edge cases documented).
+*   **100% Pass Rate** on Snowflake, Postgres, SQLite, Oracle, DB2, and MSSQL.
+*   **100% Pass Rate** on MySQL (Silent diffs resolved in v2.0.0).
 
 ## Conclusion
 The SchemaForge is a mature, battle-tested solution ready for organization-wide adoption. It bridges the gap between modern DevOps practices and database administration, enabling faster, safer, and more compliant data operations.

@@ -1,0 +1,35 @@
+-- DB2 z/OS Exhaustive Coverage Test
+CREATE STOGROUP MYSTOGP VOLUMES ('*') VCAT MYVCAT;
+
+CREATE DATABASE MYDB;
+
+CREATE TABLESPACE MYTS IN MYDB 
+    USING STOGROUP MYSTOGP 
+    PRIQTY 100 SECQTY 50 
+    BUFFERPOOL BP1 
+    LOCKSIZE PAGE;
+
+CREATE TABLE employee (
+    id INT NOT NULL,
+    name VARCHAR(100),
+    sys_start TIMESTAMP(12) NOT NULL GENERATED ALWAYS AS ROW BEGIN,
+    sys_end TIMESTAMP(12) NOT NULL GENERATED ALWAYS AS ROW END,
+    trans_id TIMESTAMP(12) GENERATED ALWAYS AS TRANSACTION START ID,
+    PERIOD SYSTEM_TIME (sys_start, sys_end)
+) IN MYDB.MYTS;
+
+CREATE TABLE employee_history LIKE employee;
+
+ALTER TABLE employee ADD VERSIONING USE HISTORY TABLE employee_history;
+
+CREATE UNIQUE INDEX idx_emp_id ON employee (id ASC) 
+    INCLUDE (name) 
+    CLUSTER 
+    PCTFREE 10;
+
+CREATE ALIAS emp_alias FOR employee;
+CREATE ALIAS seq_alias FOR sequence_dummy; -- dummy to test alias START WITH 1 INCREMENT BY 1;
+CREATE ALIAS test_alias FOR test_table;
+CREATE SEQUENCE test_seq;
+CREATE ALIAS test_alias FOR test_table;
+CREATE SEQUENCE test_seq START WITH 1;

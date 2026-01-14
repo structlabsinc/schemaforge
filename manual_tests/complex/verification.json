@@ -1,0 +1,133 @@
+{
+  "new_tables": [],
+  "dropped_tables": [],
+  "modified_tables": [
+    {
+      "table_name": "departments",
+      "added_columns": [
+        {
+          "name": "manager_id",
+          "data_type": "INT",
+          "is_nullable": true,
+          "default_value": null,
+          "is_primary_key": false,
+          "comment": null,
+          "collation": null,
+          "masking_policy": null,
+          "is_identity": false,
+          "identity_start": null,
+          "identity_step": null,
+          "is_generated": false,
+          "generation_expression": null,
+          "identity_cycle": false
+        }
+      ],
+      "dropped_columns": [],
+      "modified_columns": [],
+      "added_indexes": [],
+      "dropped_indexes": [],
+      "added_fks": [
+        {
+          "name": "fk_dept_mgr",
+          "column_names": [
+            "manager_id"
+          ],
+          "ref_table": "employees",
+          "ref_column_names": [],
+          "on_delete": null,
+          "on_update": null,
+          "comment": null,
+          "is_deferrable": false
+        }
+      ],
+      "dropped_fks": [],
+      "modified_fks": [],
+      "added_checks": [],
+      "dropped_checks": [],
+      "added_exclusion_constraints": [],
+      "dropped_exclusion_constraints": [],
+      "modified_exclusion_constraints": [],
+      "property_changes": []
+    },
+    {
+      "table_name": "employees",
+      "added_columns": [
+        {
+          "name": "mentor_id",
+          "data_type": "INT",
+          "is_nullable": true,
+          "default_value": null,
+          "is_primary_key": false,
+          "comment": null,
+          "collation": null,
+          "masking_policy": null,
+          "is_identity": false,
+          "identity_start": null,
+          "identity_step": null,
+          "is_generated": false,
+          "generation_expression": null,
+          "identity_cycle": false
+        }
+      ],
+      "dropped_columns": [],
+      "modified_columns": [],
+      "added_indexes": [],
+      "dropped_indexes": [],
+      "added_fks": [],
+      "dropped_fks": [],
+      "modified_fks": [],
+      "added_checks": [],
+      "dropped_checks": [],
+      "added_exclusion_constraints": [],
+      "dropped_exclusion_constraints": [],
+      "modified_exclusion_constraints": [],
+      "property_changes": []
+    },
+    {
+      "table_name": "projects",
+      "added_columns": [
+        {
+          "name": "name",
+          "data_type": "VARCHAR(100)",
+          "is_nullable": true,
+          "default_value": null,
+          "is_primary_key": false,
+          "comment": null,
+          "collation": null,
+          "masking_policy": null,
+          "is_identity": false,
+          "identity_start": null,
+          "identity_step": null,
+          "is_generated": false,
+          "generation_expression": null,
+          "identity_cycle": false
+        }
+      ],
+      "dropped_columns": [],
+      "modified_columns": [],
+      "added_indexes": [],
+      "dropped_indexes": [],
+      "added_fks": [],
+      "dropped_fks": [],
+      "modified_fks": [],
+      "added_checks": [],
+      "dropped_checks": [],
+      "added_exclusion_constraints": [],
+      "dropped_exclusion_constraints": [],
+      "modified_exclusion_constraints": [],
+      "property_changes": []
+    }
+  ],
+  "new_custom_objects": [],
+  "dropped_custom_objects": [],
+  "modified_custom_objects": [],
+  "new_policies": [],
+  "dropped_policies": [],
+  "modified_policies": [],
+  "new_domains": [],
+  "dropped_domains": [],
+  "modified_domains": [],
+  "new_types": [],
+  "dropped_types": [],
+  "modified_types": []
+}

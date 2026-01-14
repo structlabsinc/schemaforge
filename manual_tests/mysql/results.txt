@@ -1,0 +1,9 @@
+Execution Plan:
+[92m  + Create Table: blog_posts[0m
+[92m    + Column: id (INT)[0m
+[92m    + Column: title (VARCHAR(255))[0m
+[92m    + Column: content (TEXT)[0m
+[92m  + Create Table: cache_data[0m
+[92m    + Column: k (VARCHAR(50))[0m
+[92m    + Column: v (BLOB)[0m
+

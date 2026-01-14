@@ -1,0 +1,13 @@
+Execution Plan:
+[92m  + Create Table: customers[0m
+[92m    + Column: cust_id (NUMBER)[0m
+[92m    + Column: name (VARCHAR2(100))[0m
+[92m    + Column: credit_limit (NUMBER(10,2))[0m
+[92m  + Create Table: countries[0m
+[92m    + Column: country_id (CHAR(2))[0m
+[92m    + Column: country_name (VARCHAR2(40))[0m
+[92m  + Create Table: session_logs[0m
+[92m    + Column: log_id (NUMBER)[0m
+[92m    + Column: msg (VARCHAR2(4000))[0m
+[92m  + Create SYNONYM: cust_syn[0m
+

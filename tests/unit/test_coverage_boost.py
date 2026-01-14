@@ -225,7 +225,7 @@ class TestRollbackMigrationGeneration:
         )
         plan = MigrationPlan(modified_tables=[diff])
         sql = gen.generate_rollback_migration(plan)
-        assert 'DROP FOREIGN KEY' in sql
+        assert 'DROP CONSTRAINT' in sql
         
     def test_rollback_dropped_fk(self):
         gen = GenericGenerator()

@@ -2,7 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
-![Version](https://img.shields.io/badge/version-1.5.0-orange.svg)
+![Version](https://img.shields.io/badge/version-2.0.0-orange.svg)
 ![Tests](https://img.shields.io/badge/tests-770+-green.svg)
 ![Coverage](https://img.shields.io/badge/coverage-82%25-green.svg)
 ![Security](https://img.shields.io/badge/security-100%25_local-green.svg)
@@ -34,9 +34,9 @@ Support extends beyond standard SQL to include legacy and storage-specific defin
 
 ## Supported Dialects
 
-SchemaForge provides deep support for the following enterprise database platforms:
+SchemaForge provides comprehensive support for every major feature of the following enterprise database platforms, including advanced and complex capabilities:
 
-| Platform | Key Features Supported |
+| Platform | Comprehensive Feature Support (Including but not limited to) |
 | :--- | :--- |
 | **IBM DB2 (z/OS)** | `TABLESPACE`, `AUX TABLE`, `HISTORY TABLE`, `STOGROUP`, `PARTITION BY RANGE` |
 | **Snowflake** | `DYNAMIC TABLE`, `ICEBERG`, `TRANSIENT`, `CLUSTER BY`, `DATA_RETENTION_TIME` |
@@ -139,6 +139,7 @@ sf compare --source ./schema/v1.sql --target ./schema/v2.sql --dialect oracle --
 | `--generate-rollback` | Generate a reversal script alongside the migration. |
 | `--rollback-out` | Path to write the rollback SQL script. |
 | `--no-color` | Disable ANSI output for log compatibility. |
+| `--log-format` | Output format for logs (`text` or `json`). Default: `text`. |
 | `-v` / `-vv` | Set logging verbosity (INFO / DEBUG). |
 
 ---
@@ -156,7 +157,7 @@ flowchart TB
 
     subgraph Core["Core Processing"]
         direction TB
-        Parser["Dialect Parser"]
+        Parser["Dialect Parser (Sqlglot Engine)"]
         Model["Normalized Schema Model"]
         Diff["Comparator Engine"]
         Gen["Code Generator"]

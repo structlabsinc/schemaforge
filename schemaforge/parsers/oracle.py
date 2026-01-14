@@ -1,104 +1,67 @@
-from schemaforge.parsers.generic_sql import GenericSQLParser
-
-from schemaforge.models import Table, CustomObject, Schema, Column
-from schemaforge.parsers.utils import normalize_sql
-import sqlparse
-from sqlparse.sql import Statement, Token
-from sqlparse.tokens import Keyword, DML, DDL, Name
+from schemaforge.parsers.sqlglot_adapter import SqlglotParser
 import re
 
-class OracleParser(GenericSQLParser):
-    def parse(self, sql_content):
-        self.schema = Schema()
-        # Oracle often uses / as delimiter for PL/SQL
-        # We might need custom splitting if sqlparse fails on /
-        # But for now let's try standard parse
-        
-        # Pre-process: Remove / on its own line if it's just a delimiter
-        # Actually sqlparse might treat / as an operator or error.
-        # Let's strip it for now or handle it.
-        
-        sql_content = self._strip_comments(sql_content)
-        parsed = sqlparse.parse(sql_content)
-        
-        for statement in parsed:
-            if statement.get_type() in ('CREATE', 'CREATE OR REPLACE'):
-                self._process_create(statement)
-            elif statement.get_type() == 'UNKNOWN':
-                first_token = statement.token_first()
-                if first_token and first_token.match(DDL, 'CREATE'):
-                    self._process_create(statement)
-                elif first_token and first_token.value.upper() == 'CREATE':
-                    self._process_create(statement)
-                    
-        return self.schema
+class OracleParser(SqlglotParser):
+    def __init__(self, strict=False):
+        super().__init__(dialect='oracle', strict=strict)
 
-    def _process_create(self, statement):
-        tokens = [t for t in statement.tokens if not t.is_whitespace]
+    def parse(self, content: str):
+        # Clean-the-Parse strategy for Oracle
+        # sqlglot 28.6 fails on ORGANIZATION INDEX, STORAGE, PCTFREE, etc.
         
-        obj_type = None
-        obj_name = None
-        
-        # Check for PL/SQL objects first
-        stmt_str = str(statement).upper()
-        
-        for kw in ('FUNCTION', 'PROCEDURE', 'PACKAGE BODY', 'PACKAGE', 'TRIGGER', 'SEQUENCE', 'SYNONYM'):
-            # Check if CREATE [OR REPLACE] KW ...
-            # Regex is safer for multi-token keywords
-            # For PACKAGE BODY, we need to be careful not to match PACKAGE if PACKAGE BODY is present
-            if re.search(rf'CREATE\s+(?:OR\s+REPLACE\s+)?{kw}\s+', stmt_str):
-                obj_type = kw
-                # Extract name
-                match = re.search(rf'CREATE\s+(?:OR\s+REPLACE\s+)?{kw}\s+([a-zA-Z0-9_"]+)', stmt_str)
-                if match:
-                    obj_name = self._clean_name(match.group(1))
-                break
-                
-        if obj_type:
-            self.schema.custom_objects.append(CustomObject(
-                obj_type=obj_type,
-                name=obj_name,
-                properties={'raw_sql': normalize_sql(str(statement))}
-            ))
-            return
+        # 1. Detect properties for each CREATE TABLE (global regex is risky but often works for DDL files)
+        # We'll use a local parse loop instead
+        return super().parse(content)
 
-        # Check for TABLE
-        for i, token in enumerate(tokens):
-            if token.value.upper() == 'TABLE':
-                self._process_oracle_table(statement)
-                return
-
-    def _process_oracle_table(self, statement):
-        # Manual parsing for table name and partitioning
-        tokens = [t for t in statement.tokens if not t.is_whitespace]
+    def _preprocess(self, content: str) -> str:
+        # Strip problematic Oracle-specific keywords that cause sqlglot to flip to Command
+        orig_content = content
         
-        table_name = None
-        for i, token in enumerate(tokens):
-            if token.value.upper() == 'TABLE':
-                if i + 1 < len(tokens):
-                    table_name = self._clean_name(tokens[i+1].value)
-                break
-                
-        if not table_name:
-            return
-            
-        table = Table(name=table_name)
+        # Capture and strip
+        # Note: We don't store them here because preprocess doesn't know which table is which easily
+        # But we'll rely on parse() catch them or re-regex them in _extract_create_table
         
-        # Columns
-        for token in statement.tokens:
-            if isinstance(token, sqlparse.sql.Parenthesis):
-                self._parse_columns_and_constraints(token, table)
-                break
-                
-        # Partitioning
-        stmt_str = str(statement).upper()
-        match_part = re.search(r'PARTITION\s+BY\s+(.*?)(?:$|;)', stmt_str, re.IGNORECASE | re.DOTALL)
-        if match_part:
-            table.partition_by = match_part.group(1).strip()
-            
-        # Tablespace
-        match_ts = re.search(r'\sTABLESPACE\s+([a-zA-Z0-9_"]+)', stmt_str)
-        if match_ts:
-            table.tablespace = self._clean_name(match_ts.group(1))
+        content = re.sub(r'\s+ORGANIZATION\s+INDEX', '', content, flags=re.IGNORECASE)
+        content = re.sub(r'\s+PCTFREE\s+\d+', '', content, flags=re.IGNORECASE)
+        content = re.sub(r'\s+STORAGE\s*\(.*?\)', '', content, flags=re.IGNORECASE | re.DOTALL)
+        content = re.sub(r'\s+TABLESPACE\s+[^\s;]+', '', content, flags=re.IGNORECASE)
+        
+        return super()._preprocess(content)
 
-        self.schema.add_table(table)
+    def _extract_create_table(self, expression):
+        table = super()._extract_create_table(expression)
+        if table and hasattr(self, 'raw_content'):
+             # Find the CREATE TABLE statement for THIS table in the raw content
+             # This is a bit complex in a multi-table file, but we can search for 
+             # CREATE TABLE table_name followed by its properties.
+             clean_name = table.name.replace('"', '').replace('`', '').strip()
+             pattern = rf'CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:["`]?\w+["`]?\.)?["`]?{re.escape(clean_name)}["`]?.*?;'
+             match = re.search(pattern, self.raw_content, re.IGNORECASE | re.DOTALL)
+             if match:
+                  stmt = match.group(0)
+                  if re.search('ORGANIZATION INDEX', stmt, re.IGNORECASE):
+                       table.storage_parameters['iot'] = True
+                  if re.search('PCTFREE', stmt, re.IGNORECASE):
+                       m = re.search(r'PCTFREE\s+(\d+)', stmt, re.IGNORECASE)
+                       if m:
+                            table.storage_parameters['pctfree'] = int(m.group(1))
+                  if re.search('STORAGE', stmt, re.IGNORECASE):
+                       m = re.search(r'STORAGE\s*(\(.*?\))', stmt, re.DOTALL)
+                       if m:
+                            table.storage_parameters['storage'] = m.group(1)
+                  if re.search('TABLESPACE', stmt, re.IGNORECASE):
+                       m = re.search(r'TABLESPACE\s+([^\s;)]+)', stmt, re.IGNORECASE)
+                       if m:
+                            table.tablespace = m.group(1).replace('"', '').strip().lower()
+        return table
+
+    def _clean_type(self, data_type: str) -> str:
+        dt = data_type.upper()
+        if 'VARCHAR2' in dt:
+            return dt.replace('VARCHAR2', 'VARCHAR')
+        if dt == 'NUMBER':
+            return 'DECIMAL'
+        return data_type
+
+
+

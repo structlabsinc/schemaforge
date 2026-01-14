@@ -1,0 +1,13 @@
+'CREATE TABLE products (
+    product_id INT PRIMARY KEY CLUSTERED,
+    name NVARCHAR(255) NOT NULL,
+ ' contains unsupported syntax. Falling back to parsing as a 'Command'.
+'CREATE NONCLUSTERED INDEX idx_prod_price ON products (price) 
+    WHERE price > 100 
+    WITH (DATA_' contains unsupported syntax. Falling back to parsing as a 'Command'.
+Execution Plan:
+[92m  + Create Table: sensor_data[0m
+[92m    + Column: ts (DATETIME)[0m
+[92m    + Column: reading (FLOAT)[0m
+[92m  + Create COMMAND: CREATE[0m
+

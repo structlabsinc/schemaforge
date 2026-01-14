@@ -176,6 +176,14 @@ class Table:
     is_strict: bool = False
     without_rowid: bool = False
     
+    # MySQL Specifics
+    engine: Optional[str] = None
+    row_format: Optional[str] = None
+    auto_increment: Optional[int] = None
+    
+    # Oracle/Generic Storage
+    storage_parameters: Dict = field(default_factory=dict)
+    
     def get_column(self, name: str) -> Optional[Column]:
         for col in self.columns:
             if col.name == name:
@@ -211,7 +219,11 @@ class Table:
             "partition_of": self.partition_of,
             "partition_bound": self.partition_bound,
             "is_strict": self.is_strict,
-            "without_rowid": self.without_rowid
+            "without_rowid": self.without_rowid,
+            "engine": self.engine,
+            "row_format": self.row_format,
+            "auto_increment": self.auto_increment,
+            "storage_parameters": self.storage_parameters
         }
 
 @dataclass
@@ -234,8 +246,10 @@ class Schema:
         self.tables.append(table)
     
     def get_table(self, name: str) -> Optional[Table]:
+        if not name: return None
+        search_name = name.lower()
         for table in self.tables:
-            if table.name == name:
+            if table.name.lower() == search_name:
                 return table
         return None
         

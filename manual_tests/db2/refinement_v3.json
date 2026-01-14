@@ -1,0 +1,95 @@
+{
+  "new_tables": [
+    {
+      "name": "employee_history",
+      "columns": [],
+      "indexes": [],
+      "foreign_keys": [],
+      "check_constraints": [],
+      "exclusion_constraints": [],
+      "table_type": "Table",
+      "is_transient": false,
+      "cluster_by": [],
+      "retention_days": null,
+      "comment": null,
+      "policies": [],
+      "tags": {},
+      "tablespace": "mydb",
+      "database_name": null,
+      "partition_by": null,
+      "stogroup": "mystogp",
+      "priqty": 100,
+      "secqty": 50,
+      "audit": null,
+      "ccsid": null,
+      "is_unlogged": false,
+      "inherits": null,
+      "row_security": false,
+      "partition_of": null,
+      "partition_bound": null,
+      "is_strict": false,
+      "without_rowid": false,
+      "engine": null,
+      "row_format": null,
+      "auto_increment": null,
+      "storage_parameters": {}
+    }
+  ],
+  "dropped_tables": [],
+  "modified_tables": [],
+  "new_custom_objects": [
+    {
+      "type": "COMMAND",
+      "name": "CREATE",
+      "properties": {
+        "raw_sql": "CREATE TABLE EMPLOYEE ( ID INT NOT NULL, NAME VARCHAR(100), SYS_START TIMESTAMP(12) NOT NULL GENERATED ALWAYS AS ROW BEGIN, SYS_END TIMESTAMP(12) NOT NULL GENERATED ALWAYS AS ROW END, TRANS_ID TIMESTAMP(12) GENERATED ALWAYS AS TRANSACTION START ID, PERIOD SYSTEM_TIME (SYS_START, SYS_END) ) IN MYDB.MYTS"
+      }
+    },
+    {
+      "type": "COMMAND",
+      "name": "ALTER",
+      "properties": {
+        "raw_sql": "ALTER TABLE EMPLOYEE ADD VERSIONING USE HISTORY TABLE EMPLOYEE_HISTORY"
+      }
+    },
+    {
+      "type": "COMMAND",
+      "name": "command",
+      "properties": {
+        "raw_sql": "CREATE UNIQUE INDEX IDX_EMP_ID ON EMPLOYEE (ID ASC) INCLUDE (NAME) CLUSTER PCTFREE 10"
+      }
+    },
+    {
+      "type": "ALIAS",
+      "name": "emp_alias",
+      "properties": {
+        "raw_sql": "CREATE ALIAS EMP_ALIAS FOR EMPLOYEE"
+      }
+    },
+    {
+      "type": "ALIAS",
+      "name": "seq_alias",
+      "properties": {
+        "raw_sql": "CREATE ALIAS SEQ_ALIAS FOR SEQUENCE_DUMMY"
+      }
+    },
+    {
+      "type": "ALIAS",
+      "name": "test_alias",
+      "properties": {
+        "raw_sql": "CREATE ALIAS TEST_ALIAS FOR TEST_TABLE"
+      }
+    }
+  ],
+  "dropped_custom_objects": [],
+  "modified_custom_objects": [],
+  "new_policies": [],
+  "dropped_policies": [],
+  "modified_policies": [],
+  "new_domains": [],
+  "dropped_domains": [],
+  "modified_domains": [],
+  "new_types": [],
+  "dropped_types": [],
+  "modified_types": []
+}

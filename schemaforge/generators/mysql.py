@@ -1,6 +1,5 @@
 from schemaforge.generators.generic import GenericGenerator
-
-from schemaforge.generators.generic import GenericGenerator
+from schemaforge.models import Table, Column
 
 class MySQLGenerator(GenericGenerator):
     def quote_ident(self, ident: str) -> str:
@@ -62,7 +61,14 @@ class MySQLGenerator(GenericGenerator):
         
         pk_cols = [c.name for c in table.columns if c.is_primary_key]
         if pk_cols:
-            cols.append(f"  PRIMARY KEY ({', '.join(pk_cols)})")
+            cols.append(f"  PRIMARY KEY ({', '.join([self.quote_ident(c) for c in pk_cols])})")
+            
+        # Add Foreign Keys inline (BUG-001 fix)
+        for fk in table.foreign_keys:
+            fk_cols = ", ".join([self.quote_ident(c) for c in fk.column_names])
+            ref_cols_str = f"({', '.join([self.quote_ident(c) for c in fk.ref_column_names])})" if fk.ref_column_names else ""
+            fk_def = f"  CONSTRAINT {self.quote_ident(fk.name)} FOREIGN KEY ({fk_cols}) REFERENCES {self.quote_ident(fk.ref_table)}{ref_cols_str}"
+            cols.append(fk_def)
             
         stmt += ",\n".join(cols)
         stmt += "\n)"
@@ -90,3 +96,7 @@ class MySQLGenerator(GenericGenerator):
         if col.default_value:
             base += f" DEFAULT {col.default_value}"
         return base
+
+    def _drop_fk_stmt(self, table_name, fk):
+        # MySQL/MariaDB requires DROP FOREIGN KEY
+        return f"ALTER TABLE {self.quote_ident(table_name)} DROP FOREIGN KEY {self.quote_ident(fk.name)};"

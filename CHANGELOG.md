@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-01-14
+### Added
+- **New Parser Engine**: Migrated core parsing logic to **Sqlglot**, enabling robust handling of complex dialects and edge cases.
+- **Robust Fallback**: Implemented advanced fallback mechanisms for DB2/MSSQL to capture column definitions even when strict parsing fails.
+- **Fuzz Testing**: Added comprehensive fuzz testing suite for all 7 dialects (DB2, MSSQL, MySQL, Oracle, Postgres, Snowflake, SQLite).
+- **Silent Diff Fixes**: Resolved silent diff issues for MySQL (`ENGINE`, `ROW_FORMAT`) and SQLite (`STRICT`, `WITHOUT ROWID`).
+
+### Changed
+- **Architecture**: Major architectural shift to use `sqlglot` as the primary AST generator.
+- **Versioning**: Bumped to major version 2.0.0.
+
 ## [1.6.0] - 2026-01-14
 ### Added
 - **Microsoft SQL Server (T-SQL) Support**: Full support for `MSSQL` dialect.

@@ -288,7 +288,7 @@ class TestGeneratorEdgeCases:
         
         plan = MigrationPlan(modified_tables=[diff])
         sql = gen.generate_migration(plan)
-        assert 'DROP FOREIGN KEY' in sql
+        assert 'DROP CONSTRAINT' in sql
         
     def test_oracle_quote_ident(self):
         """Test Oracle identifier quoting."""

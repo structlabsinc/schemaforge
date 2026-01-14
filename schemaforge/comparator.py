@@ -322,6 +322,24 @@ class Comparator:
         if old_table.primary_key_name != new_table.primary_key_name:
             diff.property_changes.append(f"Primary Key Name: {old_table.primary_key_name} -> {new_table.primary_key_name}")
             has_changes = True
+
+        # MySQL Specifics
+        if old_table.engine != new_table.engine:
+            diff.property_changes.append(f"Engine: {old_table.engine} -> {new_table.engine}")
+            has_changes = True
+
+        if old_table.row_format != new_table.row_format:
+            diff.property_changes.append(f"Row Format: {old_table.row_format} -> {new_table.row_format}")
+            has_changes = True
+
+        # SQLite Specifics
+        if old_table.is_strict != new_table.is_strict:
+            diff.property_changes.append(f"Strict: {old_table.is_strict} -> {new_table.is_strict}")
+            has_changes = True
+
+        if old_table.without_rowid != new_table.without_rowid:
+            diff.property_changes.append(f"Without RowID: {old_table.without_rowid} -> {new_table.without_rowid}")
+            has_changes = True
             
         # Policies
         old_policies = set(old_table.policies)

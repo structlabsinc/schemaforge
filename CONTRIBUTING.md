@@ -17,6 +17,7 @@ We welcome contributions to SchemaForge. To maintain the stability and security 
     ```bash
     pytest tests/
     ```
+*   **Dependencies:** Ensure `sqlglot` is installed (`pip install sqlglot`).
 *   **Edge Cases:** Tests must cover edge cases, including null values, maximum precision limits, and special character handling.
 
 ## specific Workflow

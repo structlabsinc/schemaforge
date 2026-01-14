@@ -177,3 +177,176 @@ Execution Plan:
 )
     + Add Column: order_date (DATETIME)
 ```
+
+---
+
+## 4. Analytics: Modern Pipelines (Snowflake)
+
+**Context:**
+A data engineering team is modernizing their batch ETL process. They need to replace complex Airflow DAGs with Snowflake's native **Dynamic Tables** for declarative pipeline management. They also need to optimize query performance for large datasets using **Clustering**.
+
+### Input State
+
+**Source (`v1.sql`)**: Raw ingestion table.
+```sql
+CREATE TABLE raw_events (
+    event_id VARCHAR(36),
+    event_timestamp TIMESTAMP_NTZ,
+    event_type VARCHAR(50),
+    user_id VARCHAR(36),
+    payload VARIANT,
+    processed_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);
+```
+
+**Target (`v2.sql`)**: Optimized storage + Dynamic Table pipeline.
+```sql
+CREATE TABLE raw_events (
+    ...
+) CLUSTER BY (TO_DATE(event_timestamp));
+
+ALTER TABLE raw_events SET TAG cost_center = 'analytics_prod';
+
+CREATE DYNAMIC TABLE daily_metrics
+    TARGET_LAG = '1 hour'
+    WAREHOUSE = 'compute_wh'
+AS
+SELECT
+    TO_DATE(event_timestamp) AS metric_date,
+    event_type,
+    COUNT(*) AS event_count
+FROM raw_events
+GROUP BY 1, 2;
+```
+
+### Execution
+
+```bash
+sf compare --source examples/analytics_snowflake/v1.sql \
+           --target examples/analytics_snowflake/v2.sql \
+           --dialect snowflake \
+           --plan
+```
+
+### Expected Output
+
+```text
+Execution Plan:
+  ~ Modify Table: RAW_EVENTS
+    ~ Property Change: Cluster By: None -> TO_DATE(EVENT_TIMESTAMP)
+    ~ Governance: Set Tag COST_CENTER = 'analytics_prod'
+  + Create Dynamic Table: DAILY_METRICS
+    + Lag: 1 hour
+    + Warehouse: compute_wh
+```
+
+---
+
+## 5. Logistics: High Throughput (Oracle)
+
+**Context:**
+A global shipping company needs a tracking database that can handle thousands of status updates per second. To achieve this, they are migrating to an **Index Organized Table (IOT)** to minimize disk I/O for primary key lookups and implementing **Hash Partitioning** to distribute write load evenly.
+
+### Input State
+
+**Source (`v1.sql`)**: Standard Heap Table.
+```sql
+CREATE TABLE shipment_tracking (
+    tracking_id VARCHAR2(50) NOT NULL,
+    status_code VARCHAR2(10),
+    location_id NUMBER(10),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_shipment PRIMARY KEY (tracking_id)
+);
+```
+
+**Target (`v2.sql`)**: IOT with Partitioning.
+```sql
+CREATE TABLE shipment_tracking (
+    ...
+    CONSTRAINT pk_shipment PRIMARY KEY (tracking_id)
+) ORGANIZATION INDEX
+PARTITION BY HASH (tracking_id) PARTITIONS 16;
+```
+
+### Execution
+
+```bash
+sf compare --source examples/logistics_oracle/v1.sql \
+           --target examples/logistics_oracle/v2.sql \
+           --dialect oracle \
+           --plan
+```
+
+### Expected Output
+
+```text
+Execution Plan:
+  ~ Modify Table: SHIPMENT_TRACKING
+    ~ Property Change: Organization: HEAP -> INDEX
+    ~ Property Change: Partition: None -> HASH (TRACKING_ID) PARTITIONS 16
+```
+
+---
+
+## 6. Corporate: Corporate Identity (MSSQL)
+
+**Context:**
+An enterprise HR system is refactoring its employee directory. They are replacing inefficient recursive self-joins with the **HierarchyID** data type for optimized tree traversal. They are also moving legacy configuration data into typed **XML** columns for validation.
+
+### Input State
+
+**Source (`v1.sql`)**: Flat table with self-join.
+```sql
+CREATE TABLE Employees (
+    EmployeeID INT PRIMARY KEY,
+    ManagerID INT, -- Requires recursive CTEs to query
+    FullName NVARCHAR(100),
+    Title NVARCHAR(50)
+);
+
+CREATE TABLE Config (
+    KeyName VARCHAR(50) PRIMARY KEY,
+    ValueString VARCHAR(MAX) -- Unvalidated text
+);
+```
+
+**Target (`v2.sql`)**: Hierarchical + XML.
+```sql
+CREATE TABLE Employees (
+    OrgNode HIERARCHYID NOT NULL,
+    OrgLevel AS OrgNode.GetLevel(),
+    EmployeeID INT UNIQUE,
+    FullName NVARCHAR(100),
+    Title NVARCHAR(50)
+);
+CREATE CLUSTERED INDEX IX_Employees_OrgNode ON Employees(OrgNode);
+
+CREATE TABLE Config (
+    KeyName VARCHAR(50) PRIMARY KEY,
+    ValueXML XML -- Typed storage
+);
+```
+
+### Execution
+
+```bash
+sf compare --source examples/corporate_mssql/v1.sql \
+           --target examples/corporate_mssql/v2.sql \
+           --dialect mssql \
+           --plan
+```
+
+### Expected Output
+
+```text
+Execution Plan:
+  ~ Modify Table: Config
+    ~ Modify Column: ValueString -> ValueXML
+      ~ Type: VARCHAR(MAX) -> XML
+  ~ Modify Table: Employees
+    + Add Column: OrgNode (HIERARCHYID)
+    + Add Column: OrgLevel (AS OrgNode.GetLevel())
+    - Drop Column: ManagerID
+    + Create Index: IX_Employees_OrgNode (CLUSTERED)
+```

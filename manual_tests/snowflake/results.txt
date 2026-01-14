@@ -1,0 +1,13 @@
+Execution Plan:
+[92m  + Create Table: raw_data[0m
+[92m    + Column: id (INT)[0m
+[92m    + Column: payload (VARIANT)[0m
+[92m    + Column: ingested_at (TIMESTAMP_NTZ)[0m
+[92m  + Create Dynamic Table: filtered_data[0m
+[92m  + Create MASKING POLICY: email_mask as (val string)[0m
+[92m  + Create TAG: security_level[0m
+[92m  + Create STAGE: my_s3_stage[0m
+[92m  + Create PIPE: my_pipe[0m
+[92m  + Create TASK: my_task[0m
+[92m  + Create STREAM: raw_data_stream[0m
+

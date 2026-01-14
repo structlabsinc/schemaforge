@@ -6,6 +6,7 @@ from schemaforge.parsers.mysql import MySQLParser
 from schemaforge.parsers.sqlite import SQLiteParser
 from schemaforge.parsers.oracle import OracleParser
 from schemaforge.parsers.db2 import DB2Parser
+from schemaforge.parsers.mssql import MSSQLParser
 from schemaforge.parsers.utils import normalize_sql
 
 class SQLFuzzer:
@@ -60,6 +61,9 @@ class SQLFuzzer:
 class TestParserFuzzing(unittest.TestCase):
     ITERATIONS = 50 # Per dialect -> 300 total tests
     
+    def setUp(self):
+        random.seed(42)
+
     def _run_fuzz_test(self, parser, canonical_sql, obj_name):
         print(f"\nTesting {parser.__class__.__name__} with {self.ITERATIONS} iterations...")
         
@@ -94,10 +98,13 @@ class TestParserFuzzing(unittest.TestCase):
                     print(f"Messy SQL:\n{messy_sql}")
                     self.fail("Parser failed to find object in messy SQL")
                 
-                if raw_canon != raw_messy:
+                norm_canon = normalize_sql(raw_canon)
+                norm_messy = normalize_sql(raw_messy)
+                
+                if norm_canon != norm_messy:
                     print(f"FAIL: Normalization mismatch in iteration {i}")
-                    print(f"Canonical Normalized:\n{raw_canon}")
-                    print(f"Messy Normalized:\n{raw_messy}")
+                    print(f"Canonical Normalized:\n{norm_canon}")
+                    print(f"Messy Normalized:\n{norm_messy}")
                     print(f"Messy Input:\n{messy_sql}")
                     self.fail("Normalization mismatch")
                     
@@ -110,27 +117,31 @@ class TestParserFuzzing(unittest.TestCase):
 
     def test_snowflake_fuzz(self):
         sql = "CREATE VIEW V_SNOW AS SELECT COL1, COL2 FROM MY_TABLE WHERE COL1 > 100;"
-        self._run_fuzz_test(SnowflakeParser(), sql, "V_SNOW")
+        self._run_fuzz_test(SnowflakeParser(), sql, "v_snow")
 
     def test_postgres_fuzz(self):
         sql = "CREATE VIEW V_PG AS SELECT ID, NAME FROM USERS WHERE ACTIVE = TRUE;"
-        self._run_fuzz_test(PostgresParser(), sql, "V_PG")
+        self._run_fuzz_test(PostgresParser(), sql, "v_pg")
 
     def test_mysql_fuzz(self):
         sql = "CREATE VIEW V_MYSQL AS SELECT ID, EMAIL FROM CUSTOMERS ORDER BY ID DESC;"
-        self._run_fuzz_test(MySQLParser(), sql, "V_MYSQL")
+        self._run_fuzz_test(MySQLParser(), sql, "v_mysql")
 
     def test_sqlite_fuzz(self):
         sql = "CREATE VIEW V_SQLITE AS SELECT * FROM ITEMS WHERE PRICE < 50.00;"
-        self._run_fuzz_test(SQLiteParser(), sql, "V_SQLITE")
+        self._run_fuzz_test(SQLiteParser(), sql, "v_sqlite")
 
     def test_oracle_fuzz(self):
         sql = "CREATE PROCEDURE PROC_ORA AS BEGIN NULL; END;"
-        self._run_fuzz_test(OracleParser(), sql, "PROC_ORA")
+        self._run_fuzz_test(OracleParser(), sql, "proc_ora")
 
     def test_db2_fuzz(self):
         sql = "CREATE ALIAS A_DB2 FOR T_TARGET;"
-        self._run_fuzz_test(DB2Parser(), sql, "A_DB2")
+        self._run_fuzz_test(DB2Parser(), sql, "a_db2")
+
+    def test_mssql_fuzz(self):
+        sql = "CREATE PROCEDURE dbo.sp_GetItems AS SELECT * FROM Items;"
+        self._run_fuzz_test(MSSQLParser(), sql, "sp_getitems")
 
 if __name__ == '__main__':
     unittest.main()

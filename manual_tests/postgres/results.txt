@@ -1,0 +1,26 @@
+'CREATE TYPE status_enum AS ENUM ('active', 'inactive', 'pending')' contains unsupported syntax. Falling back to parsing as a 'Command'.
+'CREATE DOMAIN email_address AS TEXT CHECK (VALUE ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' contains unsupported syntax. Falling back to parsing as a 'Command'.
+'ALTER TABLE users ENABLE ROW LEVEL SECURITY' contains unsupported syntax. Falling back to parsing as a 'Command'.
+Execution Plan:
+[92m  + Create Table: users[0m
+[92m    + Column: id (INT)[0m
+[92m    + Column: email (email_address)[0m
+[92m    + Column: status (status_enum)[0m
+[92m    + Column: profile (JSONB)[0m
+[92m    + Column: created_at (TIMESTAMPTZ)[0m
+[92m    + Column: search_vector (tsvector)[0m
+[92m  + Create Table: orders[0m
+[92m    + Column: order_id (UUID)[0m
+[92m    + Column: user_id (INT)[0m
+[92m    + Column: total (DECIMAL(12, 2))[0m
+[92m    + Column: tags (TEXT[])[0m
+[92m  + Create Table: orders_small[0m
+[92m  + Create Table: orders_large[0m
+[92m  + Create Table: transient_logs[0m
+[92m    + Column: log_id (SERIAL)[0m
+[92m    + Column: log_data (TEXT)[0m
+[92m  + Create COMMAND: CREATE[0m
+[92m  + Create VIEW: user_emails[0m
+[92m  + Create VIEW: user_stats[0m
+[92m  + Create COMMAND: ALTER[0m
+
