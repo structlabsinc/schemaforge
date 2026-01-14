@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-01-14
+### Added
+- **Offline-Only Architecture**: Removed all live database connectivity (SQLAlchemy, drivers) for 100% air-gapped security.
+- **Strict Mode**: `--strict` flag to enforce zero-tolerance policy on parser warnings.
+- **Rollback Generation**: `--generate-rollback` and `--rollback-out` to auto-generate reversal scripts.
+- **Enterprise Documentation**: New `EXAMPLES.md` and `USE_CASES.md` (Finance, Healthcare, SaaS).
+- **Security**: Added `bandit` static analysis to CI pipeline.
+
+### Changed
+- **Comparison Engine**: Comparison is now purely file-based (SQL vs SQL).
+- **Test Coverage**: Boosted to **82%** (Statement coverage ~87%) with 250+ new tests.
+- **CLI**: Removed `introspector` module and `compare-livedb` command.
+
 ## [1.4.0] - 2025-12-27
 ### Added
 - **Test Coverage Expansion**: Increased test coverage from 47% to 72% with 458 new tests (575 total).
