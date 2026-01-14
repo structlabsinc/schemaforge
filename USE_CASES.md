@@ -220,6 +220,8 @@ CREATE FULLTEXT INDEX FT_USER_EMAIL ON USERS(EMAIL);
 ALTER TABLE `users` ADD COLUMN `region_id` INT NOT NULL DEFAULT 1;
 CREATE INDEX `idx_region` ON `users` (`region_id`);
 ALTER TABLE `orders` ADD COLUMN `order_date` DATETIME NOT NULL;
+-- Partitioning requires modifying the Primary Key
+ALTER TABLE `orders` DROP PRIMARY KEY, ADD PRIMARY KEY (`order_id`, `order_date`);
 ALTER TABLE `orders` MODIFY COLUMN `order_id` BIGINT UNSIGNED AUTO_INCREMENT;
 ALTER TABLE `orders` MODIFY COLUMN `user_id` BIGINT UNSIGNED NOT NULL;
 ALTER TABLE `orders` MODIFY COLUMN `total_amount` DECIMAL(10, 2) NOT NULL;
@@ -348,7 +350,8 @@ Execution Plan:
 
 ```sql
 -- Migration Script for oracle
-ALTER TABLE "shipment_tracking" MOVING TABLESPACE "TS_DATA" ORGANIZATION INDEX;
+-- Note: Converting Heap to IOT requires table recreation
+-- ALTER TABLE "shipment_tracking" MOVE TABLESPACE "TS_DATA";
 ALTER TABLE "shipment_tracking" MODIFY PARTITION BY HASH ("tracking_id") PARTITIONS 16;
 ```
 
@@ -423,6 +426,8 @@ Execution Plan:
 ALTER TABLE [employees] ADD [orgnode] HIERARCHYID NOT NULL;
 ALTER TABLE [employees] ADD [orglevel] AS ([orgnode].[getlevel]());
 ALTER TABLE [employees] DROP COLUMN [managerid];
+-- Dropping PK is required to change column type and add new clustered index
+ALTER TABLE [employees] DROP CONSTRAINT [PK_Employees];
 ALTER TABLE [employees] ALTER COLUMN [employeeid] INT NULL;
 CREATE UNIQUE INDEX [uk_employees_employeeid] ON [employees]([employeeid]);
 CREATE CLUSTERED INDEX [ix_employees_orgnode] ON [employees]([OrgNode]);
